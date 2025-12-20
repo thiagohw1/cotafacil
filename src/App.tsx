@@ -23,6 +23,8 @@ import Permissions from "./pages/Permissions";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import ApplyMigrations from "./pages/ApplyMigrations";
+import TestMigrations from "./pages/TestMigrations";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/supplier/quote/:token" element={<SupplierQuote />} />
+            <Route path="/apply-migrations" element={<ApplyMigrations />} />
+            <Route path="/test-migrations" element={<TestMigrations />} />
 
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />

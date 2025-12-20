@@ -17,32 +17,41 @@ export type Database = {
       activity_log: {
         Row: {
           action: string
-          created_at: string
+          created_at: string | null
+          created_by: string | null
           details: Json | null
           entity_id: number | null
-          entity_type: string | null
+          entity_type: string
           id: number
           tenant_id: number | null
+          updated_at: string | null
+          updated_by: string | null
           user_id: string | null
         }
         Insert: {
           action: string
-          created_at?: string
+          created_at?: string | null
+          created_by?: string | null
           details?: Json | null
           entity_id?: number | null
-          entity_type?: string | null
-          id?: never
+          entity_type: string
+          id?: number
           tenant_id?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
           user_id?: string | null
         }
         Update: {
           action?: string
-          created_at?: string
+          created_at?: string | null
+          created_by?: string | null
           details?: Json | null
           entity_id?: number | null
-          entity_type?: string | null
-          id?: never
+          entity_type?: string
+          id?: number
           tenant_id?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -57,49 +66,45 @@ export type Database = {
       }
       categories: {
         Row: {
-          active: boolean
-          created_at: string
+          active: boolean | null
+          created_at: string | null
           created_by: string | null
           deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
           id: number
           name: string
-          parent_id: number | null
           tenant_id: number
-          updated_at: string
+          updated_at: string | null
           updated_by: string | null
         }
         Insert: {
-          active?: boolean
-          created_at?: string
+          active?: boolean | null
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
-          id?: never
+          deleted_by?: string | null
+          description?: string | null
+          id?: number
           name: string
-          parent_id?: number | null
           tenant_id: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
-          active?: boolean
-          created_at?: string
+          active?: boolean | null
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
-          id?: never
+          deleted_by?: string | null
+          description?: string | null
+          id?: number
           name?: string
-          parent_id?: number | null
           tenant_id?: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "categories_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "categories_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -111,82 +116,86 @@ export type Database = {
       }
       packaging_units: {
         Row: {
-          code: string
-          created_at: string
+          abbreviation: string
+          active: boolean | null
+          created_at: string | null
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           id: number
           name: string
-          tenant_id: number
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
-          code: string
-          created_at?: string
+          abbreviation: string
+          active?: boolean | null
+          created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: number
           name: string
-          tenant_id: number
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
-          code?: string
-          created_at?: string
+          abbreviation?: string
+          active?: boolean | null
+          created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: number
           name?: string
-          tenant_id?: number
+          updated_at?: string | null
+          updated_by?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "packaging_units_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       price_history: {
         Row: {
+          created_at: string | null
           id: number
-          tenant_id: number
-          product_id: number
-          supplier_id: number
-          price: number
           package_id: number | null
-          recorded_at: string
+          price: number
+          product_id: number
+          recorded_at: string | null
           source_quote_id: number | null
           source_quote_item_id: number | null
-          created_at: string
+          supplier_id: number
+          tenant_id: number
         }
         Insert: {
-          id?: never
-          tenant_id: number
-          product_id: number
-          supplier_id: number
-          price: number
+          created_at?: string | null
+          id?: number
           package_id?: number | null
-          recorded_at?: string
+          price: number
+          product_id: number
+          recorded_at?: string | null
           source_quote_id?: number | null
           source_quote_item_id?: number | null
-          created_at?: string
+          supplier_id: number
+          tenant_id: number
         }
         Update: {
-          id?: never
-          tenant_id?: number
-          product_id?: number
-          supplier_id?: number
-          price?: number
+          created_at?: string | null
+          id?: number
           package_id?: number | null
-          recorded_at?: string
+          price?: number
+          product_id?: number
+          recorded_at?: string | null
           source_quote_id?: number | null
           source_quote_item_id?: number | null
-          created_at?: string
+          supplier_id?: number
+          tenant_id?: number
         }
         Relationships: [
           {
-            foreignKeyName: "price_history_tenant_id_fkey"
-            columns: ["tenant_id"]
+            foreignKeyName: "price_history_package_id_fkey"
+            columns: ["package_id"]
             isOneToOne: false
-            referencedRelation: "tenants"
+            referencedRelation: "product_packages"
             referencedColumns: ["id"]
           },
           {
@@ -197,49 +206,28 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "price_history_source_quote_id_fkey"
+            columns: ["source_quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_history_source_quote_item_id_fkey"
+            columns: ["source_quote_item_id"]
+            isOneToOne: false
+            referencedRelation: "quote_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "price_history_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      user_permissions: {
-        Row: {
-          id: number
-          user_id: string
-          tenant_id: number
-          permission: string
-          created_at: string
-          created_by: string | null
-        }
-        Insert: {
-          id?: never
-          user_id: string
-          tenant_id: number
-          permission: string
-          created_at?: string
-          created_by?: string | null
-        }
-        Update: {
-          id?: never
-          user_id?: string
-          tenant_id?: number
-          permission?: string
-          created_at?: string
-          created_by?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "user_permissions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_permissions_tenant_id_fkey"
+            foreignKeyName: "price_history_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -247,171 +235,33 @@ export type Database = {
           },
         ]
       }
-      purchase_orders: {
-        Row: {
-          id: number
-          tenant_id: number
-          quote_id: number
-          supplier_id: number
-          po_number: string
-          status: string
-          total_value: number
-          notes: string | null
-          delivery_address: string | null
-          payment_terms: string | null
-          created_at: string
-          created_by: string | null
-          updated_at: string
-          updated_by: string | null
-          sent_at: string | null
-          confirmed_at: string | null
-        }
-        Insert: {
-          id?: never
-          tenant_id: number
-          quote_id: number
-          supplier_id: number
-          po_number: string
-          status?: string
-          total_value?: number
-          notes?: string | null
-          delivery_address?: string | null
-          payment_terms?: string | null
-          created_at?: string
-          created_by?: string | null
-          updated_at?: string
-          updated_by?: string | null
-          sent_at?: string | null
-          confirmed_at?: string | null
-        }
-        Update: {
-          id?: never
-          tenant_id?: number
-          quote_id?: number
-          supplier_id?: number
-          po_number?: string
-          status?: string
-          total_value?: number
-          notes?: string | null
-          delivery_address?: string | null
-          payment_terms?: string | null
-          created_at?: string
-          created_by?: string | null
-          updated_at?: string
-          updated_by?: string | null
-          sent_at?: string | null
-          confirmed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "purchase_orders_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_orders_quote_id_fkey"
-            columns: ["quote_id"]
-            isOneToOne: false
-            referencedRelation: "quotes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_orders_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      purchase_order_items: {
-        Row: {
-          id: number
-          purchase_order_id: number
-          quote_item_id: number
-          product_id: number
-          package_id: number | null
-          quantity: number
-          unit_price: number
-          subtotal: number
-          delivery_days: number | null
-          notes: string | null
-        }
-        Insert: {
-          id?: never
-          purchase_order_id: number
-          quote_item_id: number
-          product_id: number
-          package_id?: number | null
-          quantity: number
-          unit_price: number
-          subtotal: number
-          delivery_days?: number | null
-          notes?: string | null
-        }
-        Update: {
-          id?: never
-          purchase_order_id?: number
-          quote_item_id?: number
-          product_id?: number
-          package_id?: number | null
-          quantity?: number
-          unit_price?: number
-          subtotal?: number
-          delivery_days?: number | null
-          notes?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
-            columns: ["purchase_order_id"]
-            isOneToOne: false
-            referencedRelation: "purchase_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_order_items_quote_item_id_fkey"
-            columns: ["quote_item_id"]
-            isOneToOne: false
-            referencedRelation: "quote_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-
       product_list_items: {
         Row: {
-          created_at: string
+          created_at: string | null
           default_qty: number | null
           id: number
           list_id: number
           preferred_package_id: number | null
           product_id: number
+          sort_order: number | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           default_qty?: number | null
-          id?: never
+          id?: number
           list_id: number
           preferred_package_id?: number | null
           product_id: number
+          sort_order?: number | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           default_qty?: number | null
-          id?: never
+          id?: number
           list_id?: number
           preferred_package_id?: number | null
           product_id?: number
+          sort_order?: number | null
         }
         Relationships: [
           {
@@ -439,36 +289,39 @@ export type Database = {
       }
       product_lists: {
         Row: {
-          created_at: string
+          created_at: string | null
           created_by: string | null
           deleted_at: string | null
+          deleted_by: string | null
           description: string | null
           id: number
           name: string
           tenant_id: number
-          updated_at: string
+          updated_at: string | null
           updated_by: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
-          id?: never
+          id?: number
           name: string
           tenant_id: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
-          id?: never
+          id?: number
           name?: string
           tenant_id?: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
@@ -483,34 +336,25 @@ export type Database = {
       }
       product_packages: {
         Row: {
-          barcode: string | null
-          created_at: string
           id: number
-          is_default: boolean
-          multiplier: number
+          is_default: boolean | null
+          multiplier: number | null
           product_id: number
           unit: string
-          updated_at: string
         }
         Insert: {
-          barcode?: string | null
-          created_at?: string
-          id?: never
-          is_default?: boolean
-          multiplier?: number
+          id?: number
+          is_default?: boolean | null
+          multiplier?: number | null
           product_id: number
           unit: string
-          updated_at?: string
         }
         Update: {
-          barcode?: string | null
-          created_at?: string
-          id?: never
-          is_default?: boolean
-          multiplier?: number
+          id?: number
+          is_default?: boolean | null
+          multiplier?: number | null
           product_id?: number
           unit?: string
-          updated_at?: string
         }
         Relationships: [
           {
@@ -524,45 +368,48 @@ export type Database = {
       }
       products: {
         Row: {
-          active: boolean
-          brand: string | null
+          active: boolean | null
           category_id: number | null
-          created_at: string
+          created_at: string | null
           created_by: string | null
           deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
           id: number
           name: string
-          notes: string | null
+          sku: string | null
           tenant_id: number
-          updated_at: string
+          updated_at: string | null
           updated_by: string | null
         }
         Insert: {
-          active?: boolean
-          brand?: string | null
+          active?: boolean | null
           category_id?: number | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
-          id?: never
+          deleted_by?: string | null
+          description?: string | null
+          id?: number
           name: string
-          notes?: string | null
+          sku?: string | null
           tenant_id: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
-          active?: boolean
-          brand?: string | null
+          active?: boolean | null
           category_id?: number | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
-          id?: never
+          deleted_by?: string | null
+          description?: string | null
+          id?: number
           name?: string
-          notes?: string | null
+          sku?: string | null
           tenant_id?: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
@@ -585,69 +432,232 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
           email: string
           full_name: string | null
           id: number
           tenant_id: number | null
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           email: string
           full_name?: string | null
-          id?: never
+          id?: number
           tenant_id?: number | null
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string
           full_name?: string | null
-          id?: never
+          id?: number
           tenant_id?: number | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          delivery_days: number | null
+          id: number
+          notes: string | null
+          package_id: number | null
+          product_id: number
+          purchase_order_id: number
+          quantity: number
+          quote_item_id: number
+          subtotal: number
+          unit_price: number
+        }
+        Insert: {
+          delivery_days?: number | null
+          id?: number
+          notes?: string | null
+          package_id?: number | null
+          product_id: number
+          purchase_order_id: number
+          quantity: number
+          quote_item_id: number
+          subtotal: number
+          unit_price: number
+        }
+        Update: {
+          delivery_days?: number | null
+          id?: number
+          notes?: string | null
+          package_id?: number | null
+          product_id?: number
+          purchase_order_id?: number
+          quantity?: number
+          quote_item_id?: number
+          subtotal?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_quote_item_id_fkey"
+            columns: ["quote_item_id"]
+            isOneToOne: false
+            referencedRelation: "quote_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          delivery_address: string | null
+          id: number
+          notes: string | null
+          payment_terms: string | null
+          po_number: string
+          quote_id: number
+          sent_at: string | null
+          status: string | null
+          supplier_id: number
+          tenant_id: number
+          total_value: number | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          delivery_address?: string | null
+          id?: number
+          notes?: string | null
+          payment_terms?: string | null
+          po_number: string
+          quote_id: number
+          sent_at?: string | null
+          status?: string | null
+          supplier_id: number
+          tenant_id: number
+          total_value?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          delivery_address?: string | null
+          id?: number
+          notes?: string | null
+          payment_terms?: string | null
+          po_number?: string
+          quote_id?: number
+          sent_at?: string | null
+          status?: string | null
+          supplier_id?: number
+          tenant_id?: number
+          total_value?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_items: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: number
           notes: string | null
           package_id: number | null
           product_id: number
           quote_id: number
           requested_qty: number | null
-          sort_order: number
-          updated_at: string
+          sort_order: number | null
+          updated_at: string | null
+          winner_reason: string | null
+          winner_response_id: number | null
+          winner_set_at: string | null
+          winner_set_by: string | null
+          winner_supplier_id: number | null
         }
         Insert: {
-          created_at?: string
-          id?: never
+          created_at?: string | null
+          id?: number
           notes?: string | null
           package_id?: number | null
           product_id: number
           quote_id: number
           requested_qty?: number | null
-          sort_order?: number
-          updated_at?: string
+          sort_order?: number | null
+          updated_at?: string | null
+          winner_reason?: string | null
+          winner_response_id?: number | null
+          winner_set_at?: string | null
+          winner_set_by?: string | null
+          winner_supplier_id?: number | null
         }
         Update: {
-          created_at?: string
-          id?: never
+          created_at?: string | null
+          id?: number
           notes?: string | null
           package_id?: number | null
           product_id?: number
           quote_id?: number
           requested_qty?: number | null
-          sort_order?: number
-          updated_at?: string
+          sort_order?: number | null
+          updated_at?: string | null
+          winner_reason?: string | null
+          winner_response_id?: number | null
+          winner_set_at?: string | null
+          winner_set_by?: string | null
+          winner_supplier_id?: number | null
         }
         Relationships: [
           {
@@ -671,12 +681,27 @@ export type Database = {
             referencedRelation: "quotes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quote_items_winner_response_id_fkey"
+            columns: ["winner_response_id"]
+            isOneToOne: false
+            referencedRelation: "quote_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_winner_supplier_id_fkey"
+            columns: ["winner_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       quote_responses: {
         Row: {
+          created_at: string | null
           delivery_days: number | null
-          filled_at: string
+          filled_at: string | null
           id: number
           min_qty: number | null
           notes: string | null
@@ -684,28 +709,33 @@ export type Database = {
           quote_id: number
           quote_item_id: number
           quote_supplier_id: number
+          updated_at: string | null
         }
         Insert: {
+          created_at?: string | null
           delivery_days?: number | null
-          filled_at?: string
-          id?: never
+          filled_at?: string | null
+          id?: number
           min_qty?: number | null
           notes?: string | null
           price?: number | null
           quote_id: number
           quote_item_id: number
           quote_supplier_id: number
+          updated_at?: string | null
         }
         Update: {
+          created_at?: string | null
           delivery_days?: number | null
-          filled_at?: string
-          id?: never
+          filled_at?: string | null
+          id?: number
           min_qty?: number | null
           notes?: string | null
           price?: number | null
           quote_id?: number
           quote_item_id?: number
           quote_supplier_id?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -731,11 +761,59 @@ export type Database = {
           },
         ]
       }
+      quote_snapshots: {
+        Row: {
+          created_at: string | null
+          id: number
+          quote_id: number
+          snapshot_data: Json
+          tenant_id: number
+          total_items: number | null
+          total_suppliers: number | null
+          total_value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          quote_id: number
+          snapshot_data: Json
+          tenant_id: number
+          total_items?: number | null
+          total_suppliers?: number | null
+          total_value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          quote_id?: number
+          snapshot_data?: Json
+          tenant_id?: number
+          total_items?: number | null
+          total_suppliers?: number | null
+          total_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_snapshots_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_suppliers: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: number
-          invited_at: string
+          invited_at: string | null
           last_access_at: string | null
           public_token: string
           quote_id: number
@@ -744,9 +822,9 @@ export type Database = {
           supplier_id: number
         }
         Insert: {
-          created_at?: string
-          id?: never
-          invited_at?: string
+          created_at?: string | null
+          id?: number
+          invited_at?: string | null
           last_access_at?: string | null
           public_token?: string
           quote_id: number
@@ -755,9 +833,9 @@ export type Database = {
           supplier_id: number
         }
         Update: {
-          created_at?: string
-          id?: never
-          invited_at?: string
+          created_at?: string | null
+          id?: number
+          invited_at?: string | null
           last_access_at?: string | null
           public_token?: string
           quote_id?: number
@@ -784,42 +862,39 @@ export type Database = {
       }
       quotes: {
         Row: {
-          created_at: string
+          created_at: string | null
           created_by: string | null
           deadline_at: string | null
-          deleted_at: string | null
           description: string | null
           id: number
           status: Database["public"]["Enums"]["quote_status"]
           tenant_id: number
           title: string
-          updated_at: string
+          updated_at: string | null
           updated_by: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deadline_at?: string | null
-          deleted_at?: string | null
           description?: string | null
-          id?: never
+          id?: number
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id: number
           title: string
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deadline_at?: string | null
-          deleted_at?: string | null
           description?: string | null
-          id?: never
+          id?: number
           status?: Database["public"]["Enums"]["quote_status"]
           tenant_id?: number
           title?: string
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
@@ -834,51 +909,54 @@ export type Database = {
       }
       suppliers: {
         Row: {
-          active: boolean
-          cnpj: string | null
+          active: boolean | null
+          address: string | null
           contact_name: string | null
-          created_at: string
+          created_at: string | null
           created_by: string | null
           deleted_at: string | null
+          deleted_by: string | null
           email: string
           id: number
           name: string
           notes: string | null
           phone: string | null
           tenant_id: number
-          updated_at: string
+          updated_at: string | null
           updated_by: string | null
         }
         Insert: {
-          active?: boolean
-          cnpj?: string | null
+          active?: boolean | null
+          address?: string | null
           contact_name?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
+          deleted_by?: string | null
           email: string
-          id?: never
+          id?: number
           name: string
           notes?: string | null
           phone?: string | null
           tenant_id: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
-          active?: boolean
-          cnpj?: string | null
+          active?: boolean | null
+          address?: string | null
           contact_name?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
+          deleted_by?: string | null
           email?: string
-          id?: never
+          id?: number
           name?: string
           notes?: string | null
           phone?: string | null
           tenant_id?: number
-          updated_at?: string
+          updated_at?: string | null
           updated_by?: string | null
         }
         Relationships: [
@@ -893,117 +971,97 @@ export type Database = {
       }
       tenants: {
         Row: {
-          active: boolean
-          created_at: string
-          created_by: string | null
+          created_at: string | null
           id: number
-          logo_url: string | null
           name: string
-          slug: string
-          updated_at: string
-          updated_by: string | null
+          updated_at: string | null
         }
         Insert: {
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          id?: never
-          logo_url?: string | null
+          created_at?: string | null
+          id?: number
           name: string
-          slug: string
-          updated_at?: string
-          updated_by?: string | null
+          updated_at?: string | null
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          id?: never
-          logo_url?: string | null
+          created_at?: string | null
+          id?: number
           name?: string
-          slug?: string
-          updated_at?: string
-          updated_by?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
-      user_roles: {
+      user_permissions: {
         Row: {
-          created_at: string
+          created_at: string | null
+          created_by: string | null
           id: number
-          role: Database["public"]["Enums"]["app_role"]
+          permission: string
+          tenant_id: number
           user_id: string
         }
         Insert: {
-          created_at?: string
-          id?: never
-          role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: number
+          permission: string
+          tenant_id: number
           user_id: string
         }
         Update: {
-          created_at?: string
-          id?: never
-          role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: number
+          permission?: string
+          tenant_id?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: number
+          role: string
+          tenant_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          role: string
+          tenant_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          role?: string
+          tenant_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      create_quote_snapshot: {
-        Args: { p_quote_id: number }
-        Returns: number
-      }
-      get_quote_by_token: {
-        Args: { p_token: string }
-        Returns: {
-          quote_deadline: string
-          quote_description: string
-          quote_id: number
-          quote_status: Database["public"]["Enums"]["quote_status"]
-          quote_supplier_id: number
-          quote_title: string
-          status: Database["public"]["Enums"]["supplier_status"]
-          submitted_at: string
-          supplier_id: number
-        }[]
-      }
-      get_user_tenant_id: { Args: { _user_id: string }; Returns: number }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      save_price_history_from_quote: {
-        Args: { p_quote_id: number }
-        Returns: number
-      }
-      has_permission: {
-        Args: {
-          p_user_id: string
-          p_permission: string
-          p_tenant_id: number
-        }
-        Returns: boolean
-      }
-      get_user_permissions: {
-        Args: {
-          p_user_id: string
-          p_tenant_id: number
-        }
-        Returns: { permission: string }[]
-      }
-      generate_po_number: {
-        Args: {
-          p_tenant_id: number
-        }
-        Returns: string
-      }
       create_purchase_order_from_quote: {
         Args: {
           p_quote_id: number
@@ -1014,38 +1072,66 @@ export type Database = {
         }
         Returns: number
       }
+      create_quote_snapshot: {
+        Args: {
+          p_quote_id: number
+        }
+        Returns: number
+      }
+      generate_po_number: {
+        Args: {
+          p_tenant_id: number
+        }
+        Returns: string
+      }
+      get_user_permissions: {
+        Args: {
+          p_user_id: string
+          p_tenant_id: number
+        }
+        Returns: {
+          permission: string
+        }[]
+      }
+      has_permission: {
+        Args: {
+          p_user_id: string
+          p_permission: string
+          p_tenant_id: number
+        }
+        Returns: boolean
+      }
+      save_price_history_from_quote: {
+        Args: {
+          p_quote_id: number
+        }
+        Returns: undefined
+      }
       save_supplier_response: {
         Args: {
           p_delivery_days?: number
+          p_filled_at?: string
           p_min_qty?: number
           p_notes?: string
-          p_price: number
-          p_quote_item_id: number
-          p_token: string
+          p_price?: number
+          p_quote_item_id?: number
+          p_quote_supplier_id?: number
         }
-        Returns: boolean
+        Returns: undefined
       }
       set_quote_item_winner: {
         Args: {
           p_quote_item_id: number
           p_winner_supplier_id: number
           p_winner_response_id: number
-          p_reason?: string
+          p_winner_reason?: string
         }
-        Returns: boolean
-      }
-      submit_supplier_quote: { Args: { p_token: string }; Returns: boolean }
-      update_supplier_access: { Args: { p_token: string }; Returns: boolean }
-      verify_supplier_token: {
-        Args: { p_quote_supplier_id: number; p_token: string }
-        Returns: boolean
+        Returns: undefined
       }
     }
-
     Enums: {
-      app_role: "admin" | "buyer" | "supplier"
       quote_status: "draft" | "open" | "closed" | "cancelled"
-      supplier_status: "invited" | "viewed" | "partial" | "submitted"
+      supplier_status: "invited" | "sent" | "viewed" | "submitted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1053,25 +1139,19 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = Database["public"]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
   | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
   : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
   ? R
@@ -1089,16 +1169,12 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
   | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
   : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
     Insert: infer I
   }
   ? I
@@ -1114,16 +1190,12 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
   | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
   : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
     Update: infer U
   }
   ? U
@@ -1139,16 +1211,12 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
   | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  | { schema: keyof Database },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
   : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
   ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
   : never
@@ -1156,26 +1224,20 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
   | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+  | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+  ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
   : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
   ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
   : never
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "buyer", "supplier"],
-      quote_status: ["draft", "open", "closed", "cancelled"],
-      supplier_status: ["invited", "viewed", "partial", "submitted"],
-    },
+    Enums: {},
   },
 } as const

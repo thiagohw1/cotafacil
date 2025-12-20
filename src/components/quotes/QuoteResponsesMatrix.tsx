@@ -103,8 +103,11 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
         .eq("quote_id", quoteId),
       supabase
         .from("quote_responses")
-        .select("*")
-        .eq("quote_id", quoteId),
+        .select(`
+          *,
+          quote_supplier:quote_suppliers!inner(quote_id)
+        `)
+        .eq("quote_supplier.quote_id", quoteId),
     ]);
 
     setItems((itemsResult.data as any) || []);

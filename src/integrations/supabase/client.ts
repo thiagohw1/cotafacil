@@ -4,10 +4,13 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
-
+// ============================================================================
+// CLIENTE PÚBLICO (anon) - Para operações normais com RLS
+// ============================================================================
+// Use este para operações de usuários autenticados
+// Respeita Row Level Security (RLS)
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
@@ -15,3 +18,35 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// ============================================================================
+// CLIENTE ADMINISTRATIVO (service_role) - Para operações completas
+// ============================================================================
+// ⚠️ ATENÇÃO: Este cliente tem ACESSO TOTAL ao banco de dados
+// - Bypassa todas as políticas RLS
+// - Pode executar qualquer operação DDL/DML
+// - Adequado para migrations, scripts administrativos e operações em massa
+// 
+// 🔒 SEGURANÇA: 
+// - NUNCA exponha o service_role_key no frontend em produção
+// - Use apenas em operações administrativas controladas
+// - Considere mover para backend/server-side em produção
+export const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
+  ? createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  })
+  : null;
+
+// ============================================================================
+// HELPER: Verifica se cliente admin está disponível
+// ============================================================================
+export const hasAdminAccess = () => supabaseAdmin !== null;
+
+// ============================================================================
+// TIPOS DE EXPORTAÇÃO
+// ============================================================================
+export type { Database } from './types';
