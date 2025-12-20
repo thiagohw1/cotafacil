@@ -8,6 +8,9 @@ import {
   FileText,
   Settings,
   LogOut,
+  TrendingUp,
+  BarChart3,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +23,11 @@ const navigation = [
   { name: "Categorias", href: "/categories", icon: FolderTree },
   { name: "Fornecedores", href: "/suppliers", icon: Users },
   { name: "Listas", href: "/lists", icon: ListOrdered },
+  { name: "Histórico de Preços", href: "/price-history", icon: TrendingUp },
+  { name: "Relatórios", href: "/reports", icon: BarChart3 },
+  { name: "Permissões", href: "/permissions", icon: Shield },
 ];
+
 
 export function Sidebar() {
   const location = useLocation();

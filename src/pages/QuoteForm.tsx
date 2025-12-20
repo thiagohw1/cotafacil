@@ -506,9 +506,38 @@ export default function QuoteForm() {
       cancel: "cancelled",
     };
 
+    const newStatus = statusMap[confirmAction];
+
+    // If closing the quote, create snapshot and save price history
+    if (confirmAction === "close") {
+      try {
+        // Create snapshot
+        const { error: snapshotError } = await supabase.rpc("create_quote_snapshot", {
+          p_quote_id: quoteId,
+        });
+
+        if (snapshotError) {
+          console.error("Error creating snapshot:", snapshotError);
+          // Continue even if snapshot fails - not blocking
+        }
+
+        // Save price history for winners
+        const { error: historyError } = await supabase.rpc("save_price_history_from_quote", {
+          p_quote_id: quoteId,
+        });
+
+        if (historyError) {
+          console.error("Error saving price history:", historyError);
+          // Continue even if history fails - not blocking
+        }
+      } catch (err) {
+        console.error("Error in post-close operations:", err);
+      }
+    }
+
     const { error } = await supabase
       .from("quotes")
-      .update({ status: statusMap[confirmAction] })
+      .update({ status: newStatus })
       .eq("id", quoteId);
 
     if (error) {
@@ -518,11 +547,19 @@ export default function QuoteForm() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Status atualizado" });
+      if (confirmAction === "close") {
+        toast({
+          title: "Cotação encerrada!",
+          description: "Snapshot e histórico de preços foram salvos."
+        });
+      } else {
+        toast({ title: "Status atualizado" });
+      }
       fetchQuote();
     }
     setConfirmOpen(false);
   };
+
 
   const selectedProduct = products.find(
     (p) => p.id.toString() === newItem.product_id
@@ -884,9 +921,10 @@ export default function QuoteForm() {
 
           {isEditing && formData.status !== "draft" && (
             <TabsContent value="responses" className="mt-6">
-              <QuoteResponsesMatrix quoteId={parseInt(id!)} />
+              <QuoteResponsesMatrix quoteId={parseInt(id!)} quoteStatus={formData.status} />
             </TabsContent>
           )}
+
         </Tabs>
       </div>
 
