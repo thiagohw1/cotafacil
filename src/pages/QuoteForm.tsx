@@ -39,10 +39,12 @@ import {
   CheckCircle,
   XCircle,
   BarChart3,
+  ShoppingCart,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
+import { GeneratePOModal } from "@/components/quotes/GeneratePOModal";
 import {
   Select,
   SelectContent,
@@ -140,6 +142,10 @@ export default function QuoteForm() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importListItems, setImportListItems] = useState<ImportListItem[]>([]);
   const [importingList, setImportingList] = useState(false);
+
+  // PO generation modal state
+  const [poModalOpen, setPOModalOpen] = useState(false);
+  const [poSuppliers, setPOSuppliers] = useState<any[]>([]);
 
   useEffect(() => {
     if (tenantId) {

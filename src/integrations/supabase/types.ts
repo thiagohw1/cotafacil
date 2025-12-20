@@ -247,6 +247,146 @@ export type Database = {
           },
         ]
       }
+      purchase_orders: {
+        Row: {
+          id: number
+          tenant_id: number
+          quote_id: number
+          supplier_id: number
+          po_number: string
+          status: string
+          total_value: number
+          notes: string | null
+          delivery_address: string | null
+          payment_terms: string | null
+          created_at: string
+          created_by: string | null
+          updated_at: string
+          updated_by: string | null
+          sent_at: string | null
+          confirmed_at: string | null
+        }
+        Insert: {
+          id?: never
+          tenant_id: number
+          quote_id: number
+          supplier_id: number
+          po_number: string
+          status?: string
+          total_value?: number
+          notes?: string | null
+          delivery_address?: string | null
+          payment_terms?: string | null
+          created_at?: string
+          created_by?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          sent_at?: string | null
+          confirmed_at?: string | null
+        }
+        Update: {
+          id?: never
+          tenant_id?: number
+          quote_id?: number
+          supplier_id?: number
+          po_number?: string
+          status?: string
+          total_value?: number
+          notes?: string | null
+          delivery_address?: string | null
+          payment_terms?: string | null
+          created_at?: string
+          created_by?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          sent_at?: string | null
+          confirmed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          id: number
+          purchase_order_id: number
+          quote_item_id: number
+          product_id: number
+          package_id: number | null
+          quantity: number
+          unit_price: number
+          subtotal: number
+          delivery_days: number | null
+          notes: string | null
+        }
+        Insert: {
+          id?: never
+          purchase_order_id: number
+          quote_item_id: number
+          product_id: number
+          package_id?: number | null
+          quantity: number
+          unit_price: number
+          subtotal: number
+          delivery_days?: number | null
+          notes?: string | null
+        }
+        Update: {
+          id?: never
+          purchase_order_id?: number
+          quote_item_id?: number
+          product_id?: number
+          package_id?: number | null
+          quantity?: number
+          unit_price?: number
+          subtotal?: number
+          delivery_days?: number | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_quote_item_id_fkey"
+            columns: ["quote_item_id"]
+            isOneToOne: false
+            referencedRelation: "quote_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
 
       product_list_items: {
         Row: {
@@ -857,6 +997,22 @@ export type Database = {
           p_tenant_id: number
         }
         Returns: { permission: string }[]
+      }
+      generate_po_number: {
+        Args: {
+          p_tenant_id: number
+        }
+        Returns: string
+      }
+      create_purchase_order_from_quote: {
+        Args: {
+          p_quote_id: number
+          p_supplier_id: number
+          p_delivery_address?: string
+          p_payment_terms?: string
+          p_notes?: string
+        }
+        Returns: number
       }
       save_supplier_response: {
         Args: {

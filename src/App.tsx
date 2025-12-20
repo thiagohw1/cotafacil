@@ -20,6 +20,7 @@ import SupplierQuote from "./pages/SupplierQuote";
 import PriceHistory from "./pages/PriceHistory";
 import Reports from "./pages/Reports";
 import Permissions from "./pages/Permissions";
+import PurchaseOrders from "./pages/PurchaseOrders";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/price-history" element={<PriceHistory />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/permissions" element={<Permissions />} />
+              <Route path="/purchase-orders" element={<PurchaseOrders />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
 
