@@ -11,7 +11,7 @@ import {
     Building2,
     FileText
 } from 'lucide-react';
-import { PO_STATUS_LABELS } from '@/types/purchase-orders';
+import { PurchaseOrder, PO_STATUS_LABELS, POStatus } from '@/types/purchase-orders';
 
 interface POStats {
     total: number;
@@ -34,15 +34,15 @@ export default function PODashboard() {
         setLoading(true);
 
         try {
-            // Buscar todos os POs - usar any para evitar conflitos de tipo
+            // Buscar todos os POs
             const { data, error: allError } = await supabase
                 .from('purchase_orders')
                 .select('*');
 
             if (allError) throw allError;
 
-            // Cast para any[] para evitar erros de tipo
-            const allPOs = (data || []) as any[];
+            // Cast para PurchaseOrder[]
+            const allPOs = (data || []) as unknown as PurchaseOrder[];
 
             // Calcular estatísticas
             const total = allPOs.length;
@@ -50,49 +50,56 @@ export default function PODashboard() {
             // Por status
             const byStatus: Record<string, number> = {};
             allPOs.forEach(po => {
-                byStatus[po.status] = (byStatus[po.status] || 0) + 1;
+                const status = po.status || 'unknown';
+                byStatus[status] = (byStatus[status] || 0) + 1;
             });
 
             // Valor total
-            const totalValue = allPOs?.reduce((sum, po) => sum + (po.subtotal || 0), 0) || 0;
+            const totalValue = allPOs.reduce((sum, po) => sum + (Number(po.subtotal) || 0), 0);
 
             // Este mês
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
 
-            const thisMonthPOs = allPOs?.filter(po =>
+            const thisMonthPOs = allPOs.filter(po =>
                 new Date(po.created_at) >= startOfMonth
-            ) || [];
+            );
 
             const thisMonth = thisMonthPOs.length;
-            const thisMonthValue = thisMonthPOs.reduce((sum, po) => sum + (po.subtotal || 0), 0);
+            const thisMonthValue = thisMonthPOs.reduce((sum, po) => sum + (Number(po.subtotal) || 0), 0);
 
             // Top fornecedores (simplificado)
             const supplierStats: Record<number, { count: number; value: number }> = {};
-            allPOs?.forEach(po => {
+            allPOs.forEach(po => {
+                if (!po.supplier_id) return;
+
                 if (!supplierStats[po.supplier_id]) {
                     supplierStats[po.supplier_id] = { count: 0, value: 0 };
                 }
                 supplierStats[po.supplier_id].count++;
-                supplierStats[po.supplier_id].value += po.subtotal || 0;
+                supplierStats[po.supplier_id].value += Number(po.subtotal) || 0;
             });
 
             // Buscar nomes dos fornecedores
             const supplierIds = Object.keys(supplierStats).map(Number);
-            const { data: suppliers } = await supabase
-                .from('suppliers')
-                .select('id, name')
-                .in('id', supplierIds);
+            let topSuppliers: { name: string; count: number; value: number }[] = [];
 
-            const topSuppliers = Object.entries(supplierStats)
-                .map(([id, stats]) => ({
-                    name: suppliers?.find(s => s.id === Number(id))?.name || `Fornecedor #${id}`,
-                    count: stats.count,
-                    value: stats.value,
-                }))
-                .sort((a, b) => b.value - a.value)
-                .slice(0, 5);
+            if (supplierIds.length > 0) {
+                const { data: suppliers } = await supabase
+                    .from('suppliers')
+                    .select('id, name')
+                    .in('id', supplierIds);
+
+                topSuppliers = Object.entries(supplierStats)
+                    .map(([id, stats]) => ({
+                        name: suppliers?.find(s => s.id === Number(id))?.name || `Fornecedor #${id}`,
+                        count: stats.count,
+                        value: stats.value,
+                    }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 5);
+            }
 
             setStats({
                 total,

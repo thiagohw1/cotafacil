@@ -12,6 +12,7 @@ import {
   BarChart3,
   Shield,
   ShoppingCart,
+  PieChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ const navigation = [
   { name: "Histórico de Preços", href: "/price-history", icon: TrendingUp },
   { name: "Relatórios", href: "/reports", icon: BarChart3 },
   { name: "Pedidos de Compra", href: "/purchase-orders", icon: ShoppingCart },
+  { name: "Dashboard Compras", href: "/purchase-orders/dashboard", icon: PieChart },
   { name: "Permissões", href: "/permissions", icon: Shield },
 ];
 
