@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePurchaseOrders } from '@/hooks/usePurchaseOrders';
 import { POCard } from '@/components/purchase-orders/POCard';
 import { CreatePOModal } from '@/components/purchase-orders/CreatePOModal';
@@ -8,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, Filter, Package } from 'lucide-react';
+import { Plus, Search, Filter, Package, PieChart } from 'lucide-react';
 import { PurchaseOrderFilters, POStatus } from '@/types/purchase-orders';
 
 export default function PurchaseOrdersList() {
+    const navigate = useNavigate();
     const [filters, setFilters] = useState<PurchaseOrderFilters>({});
     const [searchTerm, setSearchTerm] = useState('');
     const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -45,6 +47,10 @@ export default function PurchaseOrdersList() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => navigate('/purchase-orders/dashboard')}>
+                        <PieChart className="h-4 w-4 mr-2" />
+                        Dashboard
+                    </Button>
                     <ExportExcelButton purchaseOrders={purchaseOrders} />
                     <Button onClick={() => setCreateModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />

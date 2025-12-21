@@ -29,6 +29,7 @@ import TestSuppliers from "./pages/TestSuppliers";
 import PurchaseOrderView from "./pages/PurchaseOrderView";
 import PODashboard from "./pages/PODashboard";
 import SimulatePO from "./pages/SimulatePO";
+import TestsAndSimulations from "./pages/TestsAndSimulations";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/test-migrations" element={<TestMigrations />} />
             <Route path="/test-suppliers" element={<TestSuppliers />} />
             <Route path="/simulate-po" element={<SimulatePO />} />
+            <Route path="/tests" element={<TestsAndSimulations />} />
 
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
