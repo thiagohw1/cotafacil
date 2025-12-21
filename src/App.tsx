@@ -25,6 +25,9 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ApplyMigrations from "./pages/ApplyMigrations";
 import TestMigrations from "./pages/TestMigrations";
+import TestSuppliers from "./pages/TestSuppliers";
+import PurchaseOrderView from "./pages/PurchaseOrderView";
+import PODashboard from "./pages/PODashboard";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +44,7 @@ const App = () => (
             <Route path="/supplier/quote/:token" element={<SupplierQuote />} />
             <Route path="/apply-migrations" element={<ApplyMigrations />} />
             <Route path="/test-migrations" element={<TestMigrations />} />
+            <Route path="/test-suppliers" element={<TestSuppliers />} />
 
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
@@ -56,6 +60,8 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/purchase-orders" element={<PurchaseOrders />} />
+              <Route path="/purchase-orders/dashboard" element={<PODashboard />} />
+              <Route path="/purchase-orders/:id" element={<PurchaseOrderView />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
 

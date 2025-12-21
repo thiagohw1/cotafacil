@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { WinnersSummary } from "./WinnersSummary";
 import {
   Dialog,
   DialogContent,
@@ -454,8 +455,9 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                                   {formatCurrency(response.price)}
                                 </span>
                                 {isWinner && (
-                                  <div className="text-xs text-success font-medium">
-                                    ★ Vencedor
+                                  <div className="flex items-center justify-center gap-1 text-xs text-success font-semibold">
+                                    <Trophy className="h-3.5 w-3.5 fill-warning text-warning" />
+                                    Vencedor
                                   </div>
                                 )}
                                 {response.min_qty && (
@@ -495,6 +497,18 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
           </div>
         </CardContent>
       </Card>
+
+      {/* Winners Summary Card */}
+      {canSetWinners && items.length > 0 && (
+        <div className="mt-6">
+          <WinnersSummary
+            itemsWithWinners={getItemsWithWinners()}
+            totalItems={items.length}
+            totalValue={getTotalValue()}
+            canGeneratePO={quoteStatus === 'closed'}
+          />
+        </div>
+      )}
 
       {/* Winner Selection Modal */}
       <Dialog open={winnerModalOpen} onOpenChange={setWinnerModalOpen}>

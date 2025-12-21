@@ -1,176 +1,178 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/layout/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Loader2, FileText, Eye, Printer, Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useTenant } from "@/hooks/useTenant";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useState } from 'react';
+import { usePurchaseOrders } from '@/hooks/usePurchaseOrders';
+import { POCard } from '@/components/purchase-orders/POCard';
+import { CreatePOModal } from '@/components/purchase-orders/CreatePOModal';
+import { ExportExcelButton } from '@/components/purchase-orders/ExportExcelButton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Plus, Search, Filter, Package } from 'lucide-react';
+import { PurchaseOrderFilters, POStatus } from '@/types/purchase-orders';
 
-interface PurchaseOrder {
-    id: number;
-    po_number: string;
-    quote_id: number;
-    supplier_id: number;
-    status: string;
-    total_value: number;
-    created_at: string;
-    supplier_name?: string;
-    quote_title?: string;
-}
+export default function PurchaseOrdersList() {
+    const [filters, setFilters] = useState<PurchaseOrderFilters>({});
+    const [searchTerm, setSearchTerm] = useState('');
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const { purchaseOrders, loading, error, refetch } = usePurchaseOrders(filters);
 
-const STATUS_CONFIG = {
-    draft: { label: "Rascunho", variant: "secondary" as const },
-    sent: { label: "Enviado", variant: "default" as const },
-    confirmed: { label: "Confirmado", variant: "default" as const },
-    cancelled: { label: "Cancelado", variant: "destructive" as const },
-};
+    const handleSearch = () => {
+        setFilters({ ...filters, search: searchTerm });
+    };
 
-export default function PurchaseOrders() {
-    const navigate = useNavigate();
-    const { tenantId } = useTenant();
-    const [loading, setLoading] = useState(true);
-    const [orders, setOrders] = useState<PurchaseOrder[]>([]);
-
-    useEffect(() => {
-        if (tenantId) {
-            fetchOrders();
-        }
-    }, [tenantId]);
-
-    const fetchOrders = async () => {
-        if (!tenantId) return;
-        setLoading(true);
-
-        try {
-            const { data, error } = await supabase
-                .from("purchase_orders")
-                .select(`
-          *,
-          suppliers(name),
-          quotes(title)
-        `)
-                .eq("tenant_id", tenantId)
-                .order("created_at", { ascending: false });
-
-            if (error) throw error;
-
-            const mapped = (data || []).map((po: any) => ({
-                ...po,
-                supplier_name: po.suppliers?.name,
-                quote_title: po.quotes?.title,
-            }));
-
-            setOrders(mapped);
-        } catch (err: any) {
-            console.error("Error fetching POs:", err);
-        } finally {
-            setLoading(false);
+    const handleStatusFilter = (status: string) => {
+        if (status === 'all') {
+            setFilters({ ...filters, status: undefined });
+        } else {
+            setFilters({ ...filters, status: [status as POStatus] });
         }
     };
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-        }).format(value);
+    const clearFilters = () => {
+        setFilters({});
+        setSearchTerm('');
     };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
 
     return (
-        <div className="min-h-screen">
-            <Header
-                title="Pedidos de Compra"
-                description="Gerenciar pedidos de compra gerados a partir de cotações"
-                actions={
-                    <Button onClick={() => navigate("/quotes")}>
+        <div className="container mx-auto p-6 max-w-7xl">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold">Purchase Orders</h1>
+                    <p className="text-muted-foreground">
+                        Gerencie seus pedidos de compra
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <ExportExcelButton purchaseOrders={purchaseOrders} />
+                    <Button onClick={() => setCreateModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Nova Cotação
+                        Novo PO Manual
                     </Button>
-                }
-            />
+                </div>
+            </div>
 
-            <div className="p-6 animate-fade-in">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Lista de Pedidos</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {orders.length === 0 ? (
-                            <div className="text-center py-12">
-                                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                                <p className="text-muted-foreground">Nenhum pedido de compra encontrado.</p>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                    Gere pedidos a partir de cotações encerradas.
-                                </p>
+            {/* Filters */}
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Filter className="h-5 w-5" />
+                        Filtros
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Busca por número */}
+                        <div className="md:col-span-2">
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Buscar por número do PO..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                />
+                                <Button onClick={handleSearch} variant="secondary">
+                                    <Search className="h-4 w-4" />
+                                </Button>
                             </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Número PO</TableHead>
-                                        <TableHead>Fornecedor</TableHead>
-                                        <TableHead>Cotação</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Valor Total</TableHead>
-                                        <TableHead>Data</TableHead>
-                                        <TableHead className="text-right">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {orders.map((po) => {
-                                        const statusConfig = STATUS_CONFIG[po.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft;
-                                        return (
-                                            <TableRow key={po.id}>
-                                                <TableCell className="font-medium">{po.po_number}</TableCell>
-                                                <TableCell>{po.supplier_name || "-"}</TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {po.quote_title || `#${po.quote_id}`}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-                                                </TableCell>
-                                                <TableCell className="font-medium">{formatCurrency(po.total_value)}</TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {format(new Date(po.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <Button size="sm" variant="outline">
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button size="sm" variant="outline">
-                                                            <Printer className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        )}
+                        </div>
+
+                        {/* Filtro de status */}
+                        <div>
+                            <Select onValueChange={handleStatusFilter} defaultValue="all">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos os Status</SelectItem>
+                                    <SelectItem value="draft">Rascunho</SelectItem>
+                                    <SelectItem value="sent">Enviado</SelectItem>
+                                    <SelectItem value="confirmed">Confirmado</SelectItem>
+                                    <SelectItem value="delivered">Entregue</SelectItem>
+                                    <SelectItem value="cancelled">Cancelado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Limpar filtros */}
+                        <div>
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={clearFilters}
+                            >
+                                Limpar Filtros
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Lista de POs */}
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <Card key={i}>
+                            <CardHeader>
+                                <Skeleton className="h-6 w-32" />
+                                <Skeleton className="h-4 w-24 mt-2" />
+                            </CardHeader>
+                            <CardContent>
+                                <Skeleton className="h-4 w-full mb-2" />
+                                <Skeleton className="h-4 w-20 mb-3" />
+                                <Skeleton className="h-9 w-full" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            ) : error ? (
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="pt-6">
+                        <p className="text-red-800 text-center">
+                            Erro ao carregar Purchase Orders: {error}
+                        </p>
                     </CardContent>
                 </Card>
-            </div>
+            ) : purchaseOrders.length === 0 ? (
+                <Card className="border-dashed">
+                    <CardContent className="pt-12 pb-12 text-center">
+                        <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">
+                            Nenhum Purchase Order encontrado
+                        </h3>
+                        <p className="text-muted-foreground mb-4">
+                            {filters.search || filters.status
+                                ? 'Tente ajustar os filtros de busca'
+                                : 'Comece criando um PO ou gerando a partir de uma cotação'}
+                        </p>
+                        <Button onClick={clearFilters} variant="outline">
+                            Limpar Filtros
+                        </Button>
+                    </CardContent>
+                </Card>
+            ) : (
+                <>
+                    {/* Contador */}
+                    <div className="mb-4 text-sm text-muted-foreground">
+                        Mostrando {purchaseOrders.length} {purchaseOrders.length === 1 ? 'Purchase Order' : 'Purchase Orders'}
+                    </div>
+
+                    {/* Grid de POs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {purchaseOrders.map((po) => (
+                            <POCard key={po.id} purchaseOrder={po} />
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {/* Modal Criação Manual */}
+            <CreatePOModal
+                open={createModalOpen}
+                onOpenChange={setCreateModalOpen}
+                onSuccess={refetch}
+            />
         </div>
     );
 }

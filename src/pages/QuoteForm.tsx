@@ -44,7 +44,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
-import { GeneratePOModal } from "@/components/quotes/GeneratePOModal";
+import { GeneratePOModal } from "@/components/purchase-orders/GeneratePOModal";
 import {
   Select,
   SelectContent,
@@ -632,6 +632,16 @@ export default function QuoteForm() {
         {isEditing && (
           <div className="flex items-center gap-2">
             <StatusBadge status={formData.status as any} />
+            {formData.status === "closed" && (
+              <Button
+                variant="default"
+                className="bg-success hover:bg-success/90"
+                onClick={() => setPOModalOpen(true)}
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Gerar Purchase Orders
+              </Button>
+            )}
             {formData.status !== "cancelled" && formData.status !== "draft" && (
               <Button
                 variant="ghost"
@@ -940,6 +950,14 @@ export default function QuoteForm() {
         title={actionLabels[confirmAction].title}
         description={actionLabels[confirmAction].desc}
         onConfirm={confirmStatusChange}
+      />
+
+      {/* Modal de Geração de PO */}
+      <GeneratePOModal
+        open={poModalOpen}
+        onOpenChange={setPOModalOpen}
+        quoteId={parseInt(id || '0')}
+        quoteNumber={formData.title || `Cotação #${id}`}
       />
 
       {/* Import List Modal */}
