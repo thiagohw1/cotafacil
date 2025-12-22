@@ -240,7 +240,7 @@ export default function PurchaseOrderView() {
                                         <TableCell>
                                             <div>
                                                 <p className="font-medium">
-                                                    Produto #{item.product_id}
+                                                    {item.product?.name || `Produto #${item.product_id}`}
                                                 </p>
                                                 {item.notes && (
                                                     <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>

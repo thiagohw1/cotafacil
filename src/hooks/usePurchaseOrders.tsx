@@ -106,7 +106,10 @@ export function usePurchaseOrder(id: number) {
             // Buscar itens do PO (pode estar vazio se for PO manual novo)
             const { data: itemsData, error: itemsError } = await supabase
                 .from('purchase_order_items')
-                .select('*')
+                .select(`
+                    *,
+                    product:products(id, name)
+                `)
                 .eq('po_id', id);
 
             // Se deu erro, só loga mas não quebra (PO pode não ter itens ainda)

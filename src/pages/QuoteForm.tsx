@@ -53,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { mailService } from "@/services/mailService";
 
 interface QuoteItem {
   id?: number;
@@ -558,6 +559,62 @@ export default function QuoteForm() {
           title: "Cotação encerrada!",
           description: "Snapshot e histórico de preços foram salvos."
         });
+      } else if (confirmAction === "open") {
+        // Send email invitations
+        try {
+          // Fetch fresh suppliers data to ensure we have tokens
+          const { data: suppliersData } = await supabase
+            .from("quote_suppliers")
+            .select(`
+              id,
+              public_token,
+              supplier:suppliers(name, email)
+            `)
+            .eq("quote_id", quoteId);
+
+          if (suppliersData && suppliersData.length > 0) {
+            let emailCount = 0;
+            const baseUrl = window.location.origin;
+
+            await Promise.all(
+              suppliersData.map(async (qs: any) => {
+                if (qs.supplier?.email && qs.public_token) {
+                  const link = `${baseUrl}/supplier/quote/${qs.public_token}`;
+                  const html = mailService.generateQuoteInvitation(
+                    formData.title,
+                    qs.supplier.name,
+                    link,
+                    formData.description
+                  );
+
+                  await mailService.sendEmail({
+                    to: [qs.supplier.email],
+                    subject: `Convite para Cotação: ${formData.title}`,
+                    html
+                  });
+                  emailCount++;
+                }
+              })
+            );
+
+            if (emailCount > 0) {
+              toast({
+                title: "Status atualizado e e-mails enviados",
+                description: `${emailCount} fornecedores foram notificados.`
+              });
+            } else {
+              toast({ title: "Status atualizado" });
+            }
+          } else {
+            toast({ title: "Status atualizado" });
+          }
+        } catch (mailErr) {
+          console.error("Error sending emails:", mailErr);
+          toast({
+            title: "Status atualizado, mas houve erro no envio de e-mails",
+            variant: "destructive"
+          });
+        }
       } else {
         toast({ title: "Status atualizado" });
       }
