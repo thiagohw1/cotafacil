@@ -13,13 +13,15 @@ import {
 import { Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Combobox } from '@/components/ui/combobox';
 
 interface AddPOItemFormProps {
     poId: number;
+    existingItems?: any[]; // Existing PO items to check for duplicates
     onSuccess: () => void;
 }
 
-export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
+export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItemFormProps) {
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState<any[]>([]);
     const [packages, setPackages] = useState<any[]>([]);
@@ -62,20 +64,35 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
     };
 
     const loadPackages = async (productId: number) => {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('product_packages')
-            .select('id, unit')
-            .eq('product_id', productId);
+            .select('id, unit, multiplier, is_default')
+            .eq('product_id', productId)
+            .order('is_default', { ascending: false });
+
+        if (error) {
+            console.error('Error loading packages:', error);
+        }
 
         setPackages(data || []);
+
+        // Auto-select default package
+        const defaultPkg = data?.find(pkg => pkg.is_default);
+
+        if (defaultPkg) {
+            setFormData(prev => ({ ...prev, package_id: defaultPkg.id.toString() }));
+        } else {
+            setFormData(prev => ({ ...prev, package_id: '' }));
+        }
     };
 
     const handleProductChange = (productId: string) => {
-        setFormData({ ...formData, product_id: productId, package_id: '' });
+        setFormData(prev => ({ ...prev, product_id: productId }));
         if (productId) {
             loadPackages(parseInt(productId));
         } else {
             setPackages([]);
+            setFormData(prev => ({ ...prev, package_id: '' }));
         }
     };
 
@@ -92,6 +109,21 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
             toast({
                 title: 'Campos obrigatórios',
                 description: 'Preencha produto, quantidade e preço unitário',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        // Check for duplicate product
+        const isDuplicate = existingItems.some(
+            item => item.product_id === parseInt(formData.product_id)
+        );
+
+        if (isDuplicate) {
+            const productName = products.find(p => p.id === parseInt(formData.product_id))?.name || 'Produto';
+            toast({
+                title: 'Produto duplicado',
+                description: `${productName} já foi adicionado a este pedido. Edite o item existente ao invés de adicionar novamente.`,
                 variant: 'destructive',
             });
             return;
@@ -162,21 +194,17 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
                             Carregando...
                         </div>
                     ) : (
-                        <Select
+                        <Combobox
+                            options={products.map((p) => ({
+                                value: p.id.toString(),
+                                label: p.name,
+                            }))}
                             value={formData.product_id}
                             onValueChange={handleProductChange}
-                        >
-                            <SelectTrigger id="product">
-                                <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {products.map((p) => (
-                                    <SelectItem key={p.id} value={p.id.toString()}>
-                                        {p.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Digite para buscar..."
+                            searchPlaceholder="Buscar produto..."
+                            emptyText="Nenhum produto encontrado."
+                        />
                     )}
                 </div>
 
@@ -184,8 +212,9 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
                 <div className="space-y-2">
                     <Label htmlFor="package">Embalagem</Label>
                     <Select
+                        key={`package-${formData.product_id}-${packages.length}`}
                         value={formData.package_id}
-                        onValueChange={(value) => setFormData({ ...formData, package_id: value })}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, package_id: value }))}
                         disabled={!formData.product_id || packages.length === 0}
                     >
                         <SelectTrigger id="package">
@@ -194,7 +223,7 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
                         <SelectContent>
                             {packages.map((pkg) => (
                                 <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                                    {pkg.unit}
+                                    {pkg.multiplier && pkg.multiplier > 1 ? `${pkg.unit}-${pkg.multiplier}` : pkg.unit}
                                 </SelectItem>
                             ))}
                         </SelectContent>

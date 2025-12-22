@@ -196,6 +196,7 @@ export default function PurchaseOrderView() {
                 <div className="mb-6">
                     <AddPOItemForm
                         poId={purchaseOrder.id}
+                        existingItems={purchaseOrder.items}
                         onSuccess={() => {
                             refetch();
                             toast({
@@ -241,6 +242,7 @@ export default function PurchaseOrderView() {
                                             <div>
                                                 <p className="font-medium">
                                                     {item.product?.name || `Produto #${item.product_id}`}
+                                                    {item.package && ` (${item.package.multiplier && item.package.multiplier > 1 ? `${item.package.unit}-${item.package.multiplier}` : item.package.unit})`}
                                                 </p>
                                                 {item.notes && (
                                                     <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>

@@ -227,6 +227,7 @@ export function POPDFTemplate({ po }: POPDFTemplateProps) {
                             >
                                 <Text style={styles.col1}>
                                     {item.product?.name || `Produto #${item.product_id}`}
+                                    {item.package && ` (${item.package.multiplier && item.package.multiplier > 1 ? `${item.package.unit}-${item.package.multiplier}` : item.package.unit})`}
                                     {item.notes && `\n${item.notes}`}
                                 </Text>
                                 <Text style={styles.col2}>{item.qty}</Text>

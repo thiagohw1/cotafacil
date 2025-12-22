@@ -239,7 +239,7 @@ export default function QuoteForm() {
         requested_qty,
         notes,
         product:products(name),
-        package:product_packages(unit)
+        package:product_packages(unit, multiplier)
       `
       )
       .eq("quote_id", quoteId)
@@ -315,6 +315,21 @@ export default function QuoteForm() {
   const handleAddItem = async () => {
     if (!id || !newItem.product_id) return;
     const quoteId = parseInt(id);
+
+    // Check for duplicate product
+    const isDuplicate = items.some(
+      item => item.product_id === parseInt(newItem.product_id)
+    );
+
+    if (isDuplicate) {
+      const productName = products.find(p => p.id === parseInt(newItem.product_id))?.name || 'Produto';
+      toast({
+        title: 'Produto duplicado',
+        description: `${productName} já foi adicionado a esta cotação. Remova o item existente antes de adicionar novamente.`,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const { error } = await supabase.from("quote_items").insert({
       quote_id: quoteId,
@@ -815,13 +830,16 @@ export default function QuoteForm() {
                     <div className="grid grid-cols-4 gap-3">
                       <Select
                         value={newItem.product_id}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
+                          const selectedProd = products.find(p => p.id === parseInt(value));
+                          const defaultPkg = selectedProd?.packages.find(pkg => pkg.is_default);
+
                           setNewItem({
                             ...newItem,
                             product_id: value,
-                            package_id: "",
-                          })
-                        }
+                            package_id: defaultPkg ? defaultPkg.id.toString() : "",
+                          });
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Produto" />
@@ -836,6 +854,7 @@ export default function QuoteForm() {
                       </Select>
 
                       <Select
+                        key={`package-${newItem.product_id}`}
                         value={newItem.package_id}
                         onValueChange={(value) =>
                           setNewItem({ ...newItem, package_id: value })
@@ -848,7 +867,7 @@ export default function QuoteForm() {
                         <SelectContent>
                           {selectedProduct?.packages.map((pkg) => (
                             <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                              {pkg.unit}
+                              {pkg.multiplier && pkg.multiplier > 1 ? `${pkg.unit}-${pkg.multiplier}` : pkg.unit}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -877,35 +896,48 @@ export default function QuoteForm() {
                         <p>Nenhum item adicionado</p>
                       </div>
                     ) : (
-                      items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between p-3 rounded-lg border"
-                        >
-                          <div>
-                            <span className="font-medium">
-                              {item.product?.name}
-                            </span>
-                            {item.package && (
-                              <span className="text-muted-foreground ml-2">
-                                ({item.package.unit})
-                              </span>
-                            )}
-                            {item.requested_qty && (
-                              <span className="text-sm text-muted-foreground ml-4">
-                                Qtde: {item.requested_qty}
-                              </span>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => item.id && handleRemoveItem(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      ))
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-16">ID</TableHead>
+                            <TableHead>Produto</TableHead>
+                            <TableHead>Embalagem</TableHead>
+                            <TableHead className="w-24 text-right">Qtde</TableHead>
+                            <TableHead className="w-20 text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {items.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-mono text-sm text-muted-foreground">
+                                {item.product_id}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {item.product?.name}
+                              </TableCell>
+                              <TableCell>
+                                {item.package
+                                  ? (item.package.multiplier && item.package.multiplier > 1
+                                    ? `${item.package.unit}-${item.package.multiplier}`
+                                    : item.package.unit)
+                                  : '-'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {item.requested_qty ?? '-'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => item.id && handleRemoveItem(item.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     )}
                   </div>
                 </CardContent>

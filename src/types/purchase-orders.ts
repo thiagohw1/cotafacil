@@ -62,7 +62,8 @@ export interface PurchaseOrderItem {
     };
     package?: {
         id: number;
-        name: string;
+        unit: string;
+        multiplier: number;
     };
 }
 

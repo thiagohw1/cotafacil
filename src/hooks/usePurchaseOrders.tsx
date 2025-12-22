@@ -127,7 +127,8 @@ export function usePurchaseOrder(id: number) {
                 .from('purchase_order_items')
                 .select(`
                     *,
-                    product:products(id, name)
+                    product:products(id, name),
+                    package:product_packages(id, unit, multiplier)
                 `)
                 .eq('po_id', id);
 
@@ -151,10 +152,10 @@ export function usePurchaseOrder(id: number) {
             }
 
             setPurchaseOrder({
-                ...poData,
-                items: itemsData || [],
+                ...(poData as any), // Schema mismatch with types.ts
+                items: (itemsData || []) as any,
                 creator_profile: creatorProfile
-            });
+            } as PurchaseOrderWithItems);
         } catch (err: any) {
             setError(err.message);
             toast({
