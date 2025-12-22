@@ -649,6 +649,8 @@ export default function QuoteForm() {
     cancel: { title: "Cancelar cotação", desc: "A cotação será marcada como cancelada." },
   };
 
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -828,7 +830,11 @@ export default function QuoteForm() {
                   <div className="rounded-lg border p-4">
                     <h4 className="font-medium mb-3">Adicionar Produto</h4>
                     <div className="grid grid-cols-4 gap-3">
-                      <Select
+                      <Combobox
+                        options={products.map((p) => ({
+                          value: p.id.toString(),
+                          label: p.name,
+                        }))}
                         value={newItem.product_id}
                         onValueChange={(value) => {
                           const selectedProd = products.find(p => p.id === parseInt(value));
@@ -840,18 +846,10 @@ export default function QuoteForm() {
                             package_id: defaultPkg ? defaultPkg.id.toString() : "",
                           });
                         }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Produto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id.toString()}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Selecione um produto..."
+                        searchPlaceholder="Buscar produto..."
+                        emptyText="Nenhum produto encontrado."
+                      />
 
                       <Select
                         key={`package-${newItem.product_id}`}
