@@ -51,7 +51,7 @@ const navigation = [
   { name: "Relatórios", href: "/reports", icon: BarChart3 },
   { name: "Pedidos de Compra", href: "/purchase-orders", icon: ShoppingCart },
   { name: "Permissões", href: "/permissions", icon: Shield },
-  { name: "Testes e Simulações", href: "/tests", icon: FlaskConical },
+
 ];
 
 
