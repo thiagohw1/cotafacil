@@ -226,7 +226,7 @@ export function POPDFTemplate({ po }: POPDFTemplateProps) {
                                 style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
                             >
                                 <Text style={styles.col1}>
-                                    Produto #{item.product_id}
+                                    {item.product?.name || `Produto #${item.product_id}`}
                                     {item.notes && `\n${item.notes}`}
                                 </Text>
                                 <Text style={styles.col2}>{item.qty}</Text>

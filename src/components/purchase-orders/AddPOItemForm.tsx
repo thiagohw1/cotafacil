@@ -64,7 +64,7 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
     const loadPackages = async (productId: number) => {
         const { data } = await supabase
             .from('product_packages')
-            .select('id, name')
+            .select('id, unit')
             .eq('product_id', productId);
 
         setPackages(data || []);
@@ -101,7 +101,7 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
 
         const total = calculateTotal();
 
-        // @ts-ignore - Conflito temporário entre schema do banco (po_id) e tipos gerados (purchase_order_id)
+        // @ts-ignore - Schema mismatch between types.ts and actual DB
         const { error } = await supabase
             .from('purchase_order_items')
             .insert({
@@ -111,6 +111,7 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
                 qty: parseFloat(formData.qty),
                 unit_price: parseFloat(formData.unit_price),
                 total_price: total,
+                quote_item_id: null, // Allow manual items
                 notes: formData.notes || null,
             });
 
@@ -193,7 +194,7 @@ export function AddPOItemForm({ poId, onSuccess }: AddPOItemFormProps) {
                         <SelectContent>
                             {packages.map((pkg) => (
                                 <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                                    {pkg.name}
+                                    {pkg.unit}
                                 </SelectItem>
                             ))}
                         </SelectContent>

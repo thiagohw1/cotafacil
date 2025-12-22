@@ -50,11 +50,30 @@ export function usePurchaseOrders(filters?: PurchaseOrderFilters) {
                 query = query.ilike('po_number', `%${filters.search}%`);
             }
 
-            const { data, error: fetchError } = await query;
+            const { data: poData, error: fetchError } = await query;
 
             if (fetchError) throw fetchError;
 
-            setPurchaseOrders(data || []);
+            // Manual Join with Profiles (created_by -> profiles.user_id)
+            let enrichedData: PurchaseOrder[] = (poData || []) as PurchaseOrder[];
+
+            const userIds = Array.from(new Set(poData?.map(po => po.created_by).filter(Boolean)));
+
+            if (userIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('user_id, full_name, email')
+                    .in('user_id', userIds);
+
+                const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
+
+                enrichedData = enrichedData.map(po => ({
+                    ...po,
+                    creator_profile: po.created_by ? profileMap.get(po.created_by) : undefined
+                }));
+            }
+
+            setPurchaseOrders(enrichedData);
         } catch (err: any) {
             setError(err.message);
             toast({
@@ -117,9 +136,24 @@ export function usePurchaseOrder(id: number) {
                 console.warn('Aviso ao buscar itens:', itemsError);
             }
 
+            // Buscar profile do criador
+            let creatorProfile = undefined;
+            if (poData?.created_by) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('full_name, email')
+                    .eq('user_id', poData.created_by)
+                    .single();
+
+                if (profile) {
+                    creatorProfile = profile;
+                }
+            }
+
             setPurchaseOrder({
                 ...poData,
                 items: itemsData || [],
+                creator_profile: creatorProfile
             });
         } catch (err: any) {
             setError(err.message);

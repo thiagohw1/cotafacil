@@ -36,7 +36,7 @@ interface PurchaseOrdersTableProps {
     loading?: boolean;
 }
 
-type SortField = 'po_number' | 'supplier' | 'created_at' | 'status' | 'total_amount';
+type SortField = 'po_number' | 'supplier' | 'created_at' | 'status' | 'total_amount' | 'created_by';
 type SortDirection = 'asc' | 'desc';
 
 export function PurchaseOrdersTable({ data, loading }: PurchaseOrdersTableProps) {
@@ -64,6 +64,11 @@ export function PurchaseOrdersTable({ data, loading }: PurchaseOrdersTableProps)
             if (sortField === 'supplier') {
                 aValue = a.supplier?.name || '';
                 bValue = b.supplier?.name || '';
+            }
+
+            if (sortField === 'created_by') {
+                aValue = a.creator_profile?.full_name || a.creator_profile?.email || '';
+                bValue = b.creator_profile?.full_name || b.creator_profile?.email || '';
             }
 
             if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
@@ -118,6 +123,15 @@ export function PurchaseOrdersTable({ data, loading }: PurchaseOrdersTableProps)
                             </TableHead>
                             <TableHead
                                 className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => handleSort('created_by')}
+                            >
+                                <div className="flex items-center">
+                                    Criado Por
+                                    {renderSortIcon('created_by')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer hover:bg-muted/50"
                                 onClick={() => handleSort('created_at')}
                             >
                                 <div className="flex items-center">
@@ -156,7 +170,10 @@ export function PurchaseOrdersTable({ data, loading }: PurchaseOrdersTableProps)
                                     {po.supplier?.name || `Fornecedor #${po.supplier_id}`}
                                 </TableCell>
                                 <TableCell>
-                                    {format(new Date(po.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                                    {po.creator_profile?.full_name || po.creator_profile?.email || '-'}
+                                </TableCell>
+                                <TableCell>
+                                    {format(new Date(po.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                                 </TableCell>
                                 <TableCell>
                                     <POStatusBadge status={po.status} />

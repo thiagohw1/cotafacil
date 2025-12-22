@@ -128,7 +128,7 @@ export default function Products() {
         variant: "destructive",
       });
     } else {
-      setProducts(data || []);
+      setProducts((data as any) || []);
       setTotalCount(count || 0);
     }
     setLoading(false);
@@ -151,13 +151,15 @@ export default function Products() {
   const fetchPackagingUnits = async () => {
     if (!tenantId) return;
 
-    const { data } = await supabase
+    const query = supabase
       .from("packaging_units")
       .select("id, code, name")
-      .eq("tenant_id", tenantId)
-      .order("code");
+      .eq("tenant_id", tenantId);
 
-    setPackagingUnits(data || []);
+    // @ts-ignore
+    const { data } = await query.order("code");
+
+    setPackagingUnits((data as any) || []);
   };
 
   const handleAddPackagingUnit = async () => {
@@ -168,7 +170,7 @@ export default function Products() {
       tenant_id: tenantId,
       code: newPackagingUnit.code.toUpperCase(),
       name: newPackagingUnit.name,
-    });
+    } as any);
 
     if (error) {
       toast({
@@ -214,7 +216,7 @@ export default function Products() {
       .eq("product_id", productId)
       .order("unit");
 
-    setPackages(data || []);
+    setPackages((data as any) || []);
   };
 
   const handleCreate = () => {
@@ -412,7 +414,11 @@ export default function Products() {
 
     const { error } = await supabase
       .from("products")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        active: false,
+        name: `${selectedProduct.name}_deleted_${Date.now()}`
+      })
       .eq("id", selectedProduct.id);
 
     if (error) {

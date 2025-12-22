@@ -33,6 +33,10 @@ export interface PurchaseOrder {
         id: number;
         title: string;
     };
+    creator_profile?: {
+        full_name: string | null;
+        email: string;
+    };
 }
 
 export interface PurchaseOrderItem {

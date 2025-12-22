@@ -192,7 +192,7 @@ export default function Quotes() {
     }
 
     toast({ title: "Cotação duplicada" });
-    fetchQuotes();
+    navigate(`/quotes/${newQuote.id}`);
   };
 
   const handleDelete = (quote: Quote) => {
@@ -206,10 +206,15 @@ export default function Quotes() {
 
     const { error } = await supabase
       .from("quotes")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        status: "cancelled", // Ensure status change allows update if trigger exists
+        title: `${selectedQuote.title}_deleted_${Date.now()}`
+      })
       .eq("id", selectedQuote.id);
 
     if (error) {
+      console.error("Error deleting quote:", error);
       toast({
         title: "Erro ao excluir",
         description: error.message,

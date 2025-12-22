@@ -86,7 +86,7 @@ export default function Suppliers() {
         variant: "destructive",
       });
     } else {
-      setSuppliers(data || []);
+      setSuppliers((data as any) || []);
       setTotalCount(count || 0);
     }
     setLoading(false);
@@ -176,10 +176,17 @@ export default function Suppliers() {
 
     const { error } = await supabase
       .from("suppliers")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        active: false,
+        name: `${selectedSupplier.name}_deleted_${Date.now()}`,
+        email: `${selectedSupplier.email}_deleted_${Date.now()}`,
+        ...(selectedSupplier.cnpj ? { cnpj: `${selectedSupplier.cnpj}_del_${Date.now()}` } : {})
+      })
       .eq("id", selectedSupplier.id);
 
     if (error) {
+      console.error("Error deleting supplier:", error);
       toast({
         title: "Erro ao excluir",
         description: error.message,
