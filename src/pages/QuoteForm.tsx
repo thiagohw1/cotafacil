@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { mailService } from "@/services/mailService";
+import { Combobox } from "@/components/ui/combobox";
 
 interface QuoteItem {
   id?: number;
@@ -828,7 +829,11 @@ export default function QuoteForm() {
                   <div className="rounded-lg border p-4">
                     <h4 className="font-medium mb-3">Adicionar Produto</h4>
                     <div className="grid grid-cols-4 gap-3">
-                      <Select
+                      <Combobox
+                        options={products.map((p) => ({
+                          value: p.id.toString(),
+                          label: p.name,
+                        }))}
                         value={newItem.product_id}
                         onValueChange={(value) => {
                           const selectedProd = products.find(p => p.id === parseInt(value));
@@ -840,18 +845,10 @@ export default function QuoteForm() {
                             package_id: defaultPkg ? defaultPkg.id.toString() : "",
                           });
                         }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Produto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id.toString()}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Selecione um produto..."
+                        searchPlaceholder="Buscar produto..."
+                        emptyText="Nenhum produto encontrado."
+                      />
 
                       <Select
                         key={`package-${newItem.product_id}`}
