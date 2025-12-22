@@ -23,13 +23,8 @@ import Permissions from "./pages/Permissions";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import ApplyMigrations from "./pages/ApplyMigrations";
-import TestMigrations from "./pages/TestMigrations";
-import TestSuppliers from "./pages/TestSuppliers";
 import PurchaseOrderView from "./pages/PurchaseOrderView";
 import PODashboard from "./pages/PODashboard";
-import SimulatePO from "./pages/SimulatePO";
-import TestsAndSimulations from "./pages/TestsAndSimulations";
 
 const queryClient = new QueryClient();
 
@@ -44,11 +39,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/supplier/quote/:token" element={<SupplierQuote />} />
-            <Route path="/apply-migrations" element={<ApplyMigrations />} />
-            <Route path="/test-migrations" element={<TestMigrations />} />
-            <Route path="/test-suppliers" element={<TestSuppliers />} />
-            <Route path="/simulate-po" element={<SimulatePO />} />
-            <Route path="/tests" element={<TestsAndSimulations />} />
 
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
