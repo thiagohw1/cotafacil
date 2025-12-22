@@ -650,6 +650,8 @@ export default function QuoteForm() {
     cancel: { title: "Cancelar cotação", desc: "A cotação será marcada como cancelada." },
   };
 
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
