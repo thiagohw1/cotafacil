@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Loader2, Download, Eye, Trophy, Check } from "lucide-react";
+import { Loader2, Download, Eye, Trophy, Check, MessageSquare, Tags } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,6 +16,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 import {
   Select,
   SelectContent,
@@ -44,6 +50,11 @@ interface QuoteSupplier {
   submitted_at: string | null;
 }
 
+interface PricingTier {
+  min_quantity: number;
+  price: number;
+}
+
 interface Response {
   id: number;
   quote_item_id: number;
@@ -52,6 +63,7 @@ interface Response {
   min_qty: number | null;
   delivery_days: number | null;
   notes: string | null;
+  pricing_tiers: PricingTier[] | null;
   filled_at: string | null;
 }
 
@@ -113,7 +125,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
 
     setItems((itemsResult.data as any) || []);
     setSuppliers((suppliersResult.data as any) || []);
-    setResponses(responsesResult.data || []);
+    setResponses((responsesResult.data as any) || []);
     setLoading(false);
   };
 
@@ -263,7 +275,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
             winner_reason: "Menor Preço (Automático)",
             winner_set_at: new Date().toISOString(),
           })
-          .eq("id", item.id)
+          .eq("id", item.id) as any
       );
     }
 
@@ -438,7 +450,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                           <td
                             key={supplier.id}
                             className={cn(
-                              "py-3 px-3 text-center transition-colors",
+                              "py-3 px-3 text-center transition-colors relative group",
                               isWinner && "bg-success/20 ring-2 ring-success/50 ring-inset",
                               !isWinner && isLowest && "bg-success/10"
                             )}
@@ -468,6 +480,67 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                                 {response.delivery_days && (
                                   <div className="text-xs text-muted-foreground">
                                     {response.delivery_days} dias
+                                  </div>
+                                )}
+                                {response.notes && (
+                                  <div className="absolute top-1 right-1">
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-amber-600 hover:text-amber-700 hover:bg-amber-100">
+                                          <MessageSquare className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-80 p-3">
+                                        <div className="space-y-1">
+                                          <h4 className="font-medium text-sm text-amber-700 flex items-center gap-2">
+                                            <MessageSquare className="h-4 w-4" />
+                                            Observação do Fornecedor
+                                          </h4>
+                                          <p className="text-sm text-muted-foreground break-words bg-muted/50 p-2 rounded-md">
+                                            {response.notes}
+                                          </p>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
+                                )}
+                                {response.pricing_tiers && response.pricing_tiers.length > 0 && (
+                                  <div className={`absolute bottom-1 right-1 ${response.notes ? "right-7" : ""}`}>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-700 hover:bg-blue-100" title="Condições Especiais">
+                                          <Tags className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-64 p-3">
+                                        <div className="space-y-2">
+                                          <h4 className="font-medium text-sm text-blue-700 flex items-center gap-2">
+                                            <Tags className="h-4 w-4" />
+                                            Preço por Quantidade
+                                          </h4>
+                                          <div className="bg-muted/50 rounded-md p-2">
+                                            <table className="w-full text-xs">
+                                              <thead>
+                                                <tr className="border-b border-border/50">
+                                                  <th className="text-left pb-1">Mínimo</th>
+                                                  <th className="text-right pb-1">Preço</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {(response.pricing_tiers || [])
+                                                  .sort((a, b) => a.min_quantity - b.min_quantity)
+                                                  .map((tier, idx) => (
+                                                    <tr key={idx}>
+                                                      <td className="pt-1">{tier.min_quantity} un.</td>
+                                                      <td className="text-right pt-1 font-medium">{formatCurrency(tier.price)}</td>
+                                                    </tr>
+                                                  ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
                                   </div>
                                 )}
                               </div>

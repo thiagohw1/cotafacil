@@ -25,6 +25,8 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import PurchaseOrderView from "./pages/PurchaseOrderView";
 import PODashboard from "./pages/PODashboard";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -32,40 +34,42 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/supplier/quote/:token" element={<SupplierQuote />} />
+        <NotificationProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/supplier/quote/:token" element={<SupplierQuote />} />
 
-            <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/suppliers" element={<Suppliers />} />
-              <Route path="/suppliers/:id/history" element={<SupplierHistory />} />
-              <Route path="/lists" element={<ProductLists />} />
-              <Route path="/quotes" element={<Quotes />} />
-              <Route path="/quotes/new" element={<QuoteForm />} />
-              <Route path="/quotes/:id" element={<QuoteForm />} />
-              <Route path="/price-history" element={<PriceHistory />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/permissions" element={<Permissions />} />
-              <Route path="/purchase-orders" element={<PurchaseOrders />} />
-              <Route path="/purchase-orders/dashboard" element={<PODashboard />} />
-              <Route path="/purchase-orders/:id" element={<PurchaseOrderView />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/categories" element={<Categories />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/suppliers" element={<Suppliers />} />
+                <Route path="/suppliers/:id/history" element={<SupplierHistory />} />
+                <Route path="/lists" element={<ProductLists />} />
+                <Route path="/quotes" element={<Quotes />} />
+                <Route path="/quotes/new" element={<QuoteForm />} />
+                <Route path="/quotes/:id" element={<QuoteForm />} />
+                <Route path="/price-history" element={<PriceHistory />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/permissions" element={<Permissions />} />
+                <Route path="/purchase-orders" element={<PurchaseOrders />} />
+                <Route path="/purchase-orders/dashboard" element={<PODashboard />} />
+                <Route path="/purchase-orders/:id" element={<PurchaseOrderView />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/notifications" element={<Notifications />} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </NotificationProvider>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
 
 export default App;
-

@@ -11,29 +11,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuoteResponsesMatrix } from "@/components/quotes/QuoteResponsesMatrix";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Save,
   Send,
-  Plus,
-  Trash2,
-  Package,
-  Users,
-  Link as LinkIcon,
-  Copy,
   Loader2,
   ArrowLeft,
   CheckCircle,
@@ -45,59 +24,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
 import { GeneratePOModal } from "@/components/purchase-orders/GeneratePOModal";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { mailService } from "@/services/mailService";
-import { Combobox } from "@/components/ui/combobox";
-
-interface QuoteItem {
-  id?: number;
-  product_id: number;
-  package_id: number | null;
-  requested_qty: number | null;
-  notes: string | null;
-  product?: { name: string };
-  package?: { unit: string; multiplier?: number } | null;
-}
-
-interface QuoteSupplier {
-  id: number;
-  supplier_id: number;
-  public_token: string;
-  status: string;
-  supplier?: { name: string; email: string };
-}
-
-interface Product {
-  id: number;
-  name: string;
-  packages: { id: number; unit: string; multiplier: number; is_default: boolean }[];
-}
-
-interface Supplier {
-  id: number;
-  name: string;
-  email: string;
-}
-
-interface ProductList {
-  id: number;
-  name: string;
-}
-
-interface ImportListItem {
-  product_id: number;
-  product_name: string;
-  package_id: number | null;
-  requested_qty: string;
-  packages: { id: number; unit: string; multiplier: number; is_default: boolean }[];
-}
+import {
+  QuoteItem,
+  Product,
+  Supplier,
+  ProductList,
+  QuoteSupplier,
+  ImportListItem
+} from "@/types/quote";
+import { QuoteItemsTab } from "@/components/quotes/form/QuoteItemsTab";
+import { QuoteSuppliersTab } from "@/components/quotes/form/QuoteSuppliersTab";
+import { QuoteImportModal } from "@/components/quotes/form/QuoteImportModal";
 
 export default function QuoteForm() {
   const { id } = useParams();
@@ -128,7 +67,7 @@ export default function QuoteForm() {
     requested_qty: "",
   });
 
-  const [selectedSupplierId, setSelectedSupplierId] = useState("");
+
   const [selectedListId, setSelectedListId] = useState("");
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -147,7 +86,6 @@ export default function QuoteForm() {
 
   // PO generation modal state
   const [poModalOpen, setPOModalOpen] = useState(false);
-  const [poSuppliers, setPOSuppliers] = useState<any[]>([]);
 
   useEffect(() => {
     if (tenantId) {
@@ -457,36 +395,40 @@ export default function QuoteForm() {
     );
   };
 
-  const handleAddSupplier = async () => {
-    if (!id || !selectedSupplierId) return;
+  const handleAddSuppliers = async (supplierIds: number[]) => {
+    if (!id || supplierIds.length === 0) return;
     const quoteId = parseInt(id);
-    const supplierId = parseInt(selectedSupplierId);
 
-    const exists = quoteSuppliers.some(
-      (qs) => qs.supplier_id === supplierId
+    const newSuppliers = supplierIds.filter(
+      (id) => !quoteSuppliers.some((qs) => qs.supplier_id === id)
     );
 
-    if (exists) {
+    if (newSuppliers.length === 0) {
       toast({
-        title: "Fornecedor já adicionado",
-        variant: "destructive",
+        title: "Fornecedores já adicionados",
+        description: "Todos os fornecedores selecionados já estão na lista.",
       });
       return;
     }
 
-    const { error } = await supabase.from("quote_suppliers").insert({
-      quote_id: quoteId,
-      supplier_id: supplierId,
-    });
+    const { error } = await supabase.from("quote_suppliers").insert(
+      newSuppliers.map((supplierId) => ({
+        quote_id: quoteId,
+        supplier_id: supplierId,
+      }))
+    );
 
     if (error) {
       toast({
-        title: "Erro ao adicionar fornecedor",
+        title: "Erro ao adicionar fornecedores",
         description: error.message,
         variant: "destructive",
       });
     } else {
-      setSelectedSupplierId("");
+      toast({
+        title: "Fornecedores adicionados",
+        description: `${newSuppliers.length} fornecedor(es) adicionado(s) com sucesso.`,
+      });
       fetchQuote();
     }
   };
@@ -541,7 +483,6 @@ export default function QuoteForm() {
 
         if (snapshotError) {
           console.error("Error creating snapshot:", snapshotError);
-          // Continue even if snapshot fails - not blocking
         }
 
         // Save price history for winners
@@ -551,7 +492,6 @@ export default function QuoteForm() {
 
         if (historyError) {
           console.error("Error saving price history:", historyError);
-          // Continue even if history fails - not blocking
         }
       } catch (err) {
         console.error("Error in post-close operations:", err);
@@ -576,7 +516,6 @@ export default function QuoteForm() {
           description: "Snapshot e histórico de preços foram salvos."
         });
       } else if (confirmAction === "open") {
-        // Send email invitations
         try {
           // Fetch fresh suppliers data to ensure we have tokens
           const { data: suppliersData } = await supabase
@@ -639,18 +578,11 @@ export default function QuoteForm() {
     setConfirmOpen(false);
   };
 
-
-  const selectedProduct = products.find(
-    (p) => p.id.toString() === newItem.product_id
-  );
-
   const actionLabels = {
     open: { title: "Abrir cotação", desc: "Isso permitirá que fornecedores enviem suas propostas." },
     close: { title: "Encerrar cotação", desc: "Isso impedirá novos envios de propostas." },
     cancel: { title: "Cancelar cotação", desc: "A cotação será marcada como cancelada." },
   };
-
-
 
   if (loading) {
     return (
@@ -797,148 +729,28 @@ export default function QuoteForm() {
             <TabsContent value="items" className="space-y-6 mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Itens da Cotação
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-4">
-                    <Select
-                      value={selectedListId}
-                      onValueChange={setSelectedListId}
-                    >
-                      <SelectTrigger className="w-64">
-                        <SelectValue placeholder="Importar lista..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {productLists.map((list) => (
-                          <SelectItem key={list.id} value={list.id.toString()}>
-                            {list.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Itens da Cotação</CardTitle>
                     <Button
                       variant="outline"
-                      onClick={handleOpenImportModal}
-                      disabled={!selectedListId}
+                      size="sm"
+                      onClick={() => setImportModalOpen(true)}
                     >
-                      Importar
+                      Importar Lista
                     </Button>
                   </div>
-
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-medium mb-3">Adicionar Produto</h4>
-                    <div className="grid grid-cols-4 gap-3">
-                      <Combobox
-                        options={products.map((p) => ({
-                          value: p.id.toString(),
-                          label: p.name,
-                        }))}
-                        value={newItem.product_id}
-                        onValueChange={(value) => {
-                          const selectedProd = products.find(p => p.id === parseInt(value));
-                          const defaultPkg = selectedProd?.packages.find(pkg => pkg.is_default);
-
-                          setNewItem({
-                            ...newItem,
-                            product_id: value,
-                            package_id: defaultPkg ? defaultPkg.id.toString() : "",
-                          });
-                        }}
-                        placeholder="Selecione um produto..."
-                        searchPlaceholder="Buscar produto..."
-                        emptyText="Nenhum produto encontrado."
-                      />
-
-                      <Select
-                        key={`package-${newItem.product_id}`}
-                        value={newItem.package_id}
-                        onValueChange={(value) =>
-                          setNewItem({ ...newItem, package_id: value })
-                        }
-                        disabled={!selectedProduct?.packages.length}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Embalagem" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectedProduct?.packages.map((pkg) => (
-                            <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                              {pkg.multiplier && pkg.multiplier > 1 ? `${pkg.unit}-${pkg.multiplier}` : pkg.unit}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Input
-                        type="number"
-                        placeholder="Quantidade"
-                        value={newItem.requested_qty}
-                        onChange={(e) =>
-                          setNewItem({ ...newItem, requested_qty: e.target.value })
-                        }
-                      />
-
-                      <Button onClick={handleAddItem}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {items.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Nenhum item adicionado</p>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-16">ID</TableHead>
-                            <TableHead>Produto</TableHead>
-                            <TableHead>Embalagem</TableHead>
-                            <TableHead className="w-24 text-right">Qtde</TableHead>
-                            <TableHead className="w-20 text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-mono text-sm text-muted-foreground">
-                                {item.product_id}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {item.product?.name}
-                              </TableCell>
-                              <TableCell>
-                                {item.package
-                                  ? (item.package.multiplier && item.package.multiplier > 1
-                                    ? `${item.package.unit}-${item.package.multiplier}`
-                                    : item.package.unit)
-                                  : '-'}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {item.requested_qty ?? '-'}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => item.id && handleRemoveItem(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </div>
+                </CardHeader>
+                <CardContent>
+                  <QuoteItemsTab
+                    items={items}
+                    products={products}
+                    isEditing={isEditing}
+                    newItem={newItem}
+                    setNewItem={setNewItem}
+                    onAddItem={handleAddItem}
+                    onRemoveItem={handleRemoveItem}
+                    loading={saving}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -948,76 +760,17 @@ export default function QuoteForm() {
             <TabsContent value="suppliers" className="space-y-6 mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Fornecedores
-                  </CardTitle>
+                  <CardTitle>Fornecedores Convidados</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-4">
-                    <Select
-                      value={selectedSupplierId}
-                      onValueChange={setSelectedSupplierId}
-                    >
-                      <SelectTrigger className="w-64">
-                        <SelectValue placeholder="Selecionar fornecedor..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers.map((s) => (
-                          <SelectItem key={s.id} value={s.id.toString()}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleAddSupplier}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {quoteSuppliers.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Nenhum fornecedor adicionado</p>
-                      </div>
-                    ) : (
-                      quoteSuppliers.map((qs) => (
-                        <div
-                          key={qs.id}
-                          className="flex items-center justify-between p-4 rounded-lg border"
-                        >
-                          <div>
-                            <p className="font-medium">{qs.supplier?.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {qs.supplier?.email}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <StatusBadge status={qs.status as any} />
-                            {formData.status !== "draft" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => copyLink(qs.public_token)}
-                              >
-                                <Copy className="h-4 w-4 mr-2" />
-                                Copiar Link
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveSupplier(qs.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                <CardContent>
+                  <QuoteSuppliersTab
+                    quoteSuppliers={quoteSuppliers}
+                    suppliers={suppliers}
+                    onAddSuppliers={handleAddSuppliers}
+                    onRemoveSupplier={handleRemoveSupplier}
+                    onCopyLink={copyLink}
+                    loading={saving}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1025,10 +778,13 @@ export default function QuoteForm() {
 
           {isEditing && formData.status !== "draft" && (
             <TabsContent value="responses" className="mt-6">
-              <QuoteResponsesMatrix quoteId={parseInt(id!)} quoteStatus={formData.status} />
+              <QuoteResponsesMatrix
+                quoteId={parseInt(id!)}
+                quoteStatus={formData.status}
+                onWinnerChange={fetchQuote}
+              />
             </TabsContent>
           )}
-
         </Tabs>
       </div>
 
@@ -1038,82 +794,28 @@ export default function QuoteForm() {
         title={actionLabels[confirmAction].title}
         description={actionLabels[confirmAction].desc}
         onConfirm={confirmStatusChange}
+        variant={confirmAction === "cancel" ? "destructive" : "default"}
       />
 
-      {/* Modal de Geração de PO */}
+      <QuoteImportModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        productLists={productLists}
+        selectedListId={selectedListId}
+        setSelectedListId={setSelectedListId}
+        importListItems={importListItems}
+        onOpenImportModal={handleOpenImportModal}
+        onConfirmImport={handleConfirmImport}
+        onUpdateImportItem={updateImportItem}
+        importingList={importingList}
+      />
+
       <GeneratePOModal
+        quoteId={id ? parseInt(id) : 0}
+        quoteNumber={formData.title}
         open={poModalOpen}
         onOpenChange={setPOModalOpen}
-        quoteId={parseInt(id || '0')}
-        quoteNumber={formData.title || `Cotação #${id}`}
       />
-
-      {/* Import List Modal */}
-      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Importar Lista - Definir Quantidades</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Informe a quantidade e embalagem para cada produto antes de importar.
-            </p>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40%]">Produto</TableHead>
-                  <TableHead className="w-[30%]">Embalagem</TableHead>
-                  <TableHead className="w-[30%]">Quantidade</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importListItems.map((item, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{item.product_name}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={item.package_id?.toString() || ""}
-                        onValueChange={(value) => updateImportItem(index, "package_id", value)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {item.packages.map((pkg) => (
-                            <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                              {pkg.unit} - {pkg.multiplier}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="Qtde"
-                        value={item.requested_qty}
-                        onChange={(e) => updateImportItem(index, "requested_qty", e.target.value)}
-                        className={!item.requested_qty ? "border-destructive" : ""}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirmImport} disabled={importingList}>
-              {importingList && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirmar Importação
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

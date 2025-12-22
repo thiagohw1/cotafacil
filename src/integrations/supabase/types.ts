@@ -1062,6 +1062,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_quote_by_token: {
+        Args: {
+          p_token: string
+        }
+        Returns: {
+          quote_supplier_id: number
+          quote_id: number
+          supplier_id: number
+          status: string
+          submitted_at: string | null
+          quote_status: string
+          quote_title: string
+          quote_description: string | null
+          quote_deadline: string | null
+        }[]
+      }
+      update_supplier_access: {
+        Args: {
+          p_token: string
+        }
+        Returns: undefined
+      }
+      submit_supplier_quote: {
+        Args: {
+          p_token: string
+        }
+        Returns: boolean
+      }
       create_purchase_order_from_quote: {
         Args: {
           p_quote_id: number
