@@ -61,14 +61,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (!error && data) {
-      setProfile(data);
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+      return;
+    }
+
+    if (profileData) {
+      // Fetch role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      setProfile({
+        ...profileData,
+        role: roleData?.role || "buyer"
+      });
     }
   };
 

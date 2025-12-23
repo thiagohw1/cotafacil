@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -23,6 +23,7 @@ interface Supplier {
 }
 
 interface GeneratePOModalProps {
+    // Props for the modal
     open: boolean;
     onOpenChange: (open: boolean) => void;
     quoteId: number;
@@ -43,6 +44,12 @@ export function GeneratePOModal({
     const [deliveryAddress, setDeliveryAddress] = useState("");
     const [paymentTerms, setPaymentTerms] = useState("");
     const [notes, setNotes] = useState("");
+
+    useEffect(() => {
+        if (open && suppliers.length === 1) {
+            setSelectedSupplier(suppliers[0].id);
+        }
+    }, [open, suppliers]);
 
     const handleGenerate = async () => {
         if (!selectedSupplier) {
@@ -95,13 +102,13 @@ export function GeneratePOModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" aria-describedby="po-modal-description">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <ShoppingCart className="h-5 w-5" />
                         Gerar Pedido de Compra
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription id="po-modal-description">
                         Selecione o fornecedor e preencha informações adicionais para gerar o pedido.
                     </DialogDescription>
                 </DialogHeader>
@@ -119,11 +126,12 @@ export function GeneratePOModal({
                             ) : (
                                 suppliers.map((supplier) => (
                                     <button
+                                        type="button"
                                         key={supplier.id}
                                         onClick={() => setSelectedSupplier(supplier.id)}
                                         className={`p-4 rounded-lg border-2 text-left transition-colors ${selectedSupplier === supplier.id
-                                                ? "border-primary bg-primary/5"
-                                                : "border-border hover:border-primary/50"
+                                            ? "border-primary bg-primary/5"
+                                            : "border-border hover:border-primary/50"
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
@@ -181,7 +189,7 @@ export function GeneratePOModal({
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
                         Cancelar
                     </Button>
-                    <Button onClick={handleGenerate} disabled={loading || !selectedSupplier}>
+                    <Button onClick={handleGenerate} disabled={loading || selectedSupplier === null}>
                         {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                         Gerar Pedido
                     </Button>

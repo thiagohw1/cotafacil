@@ -11,7 +11,12 @@ export type Permission =
     | "manage_users"
     | "manage_products"
     | "manage_suppliers"
-    | "view_reports";
+    | "view_reports"
+    | "create_purchase_order"
+    | "edit_purchase_order"
+    | "delete_purchase_order"
+    | "view_purchase_orders"
+    | "send_purchase_order";
 
 interface UsePermissionsReturn {
     permissions: Permission[];

@@ -38,6 +38,11 @@ const AVAILABLE_PERMISSIONS: { id: Permission; label: string; description: strin
     { id: "manage_products", label: "Gerenciar Produtos", description: "CRUD de produtos" },
     { id: "manage_suppliers", label: "Gerenciar Fornecedores", description: "CRUD de fornecedores" },
     { id: "view_reports", label: "Ver Relatórios", description: "Acessar relatórios e analytics" },
+    { id: "view_purchase_orders", label: "Ver Pedidos de Compra", description: "Visualizar pedidos de compra" },
+    { id: "create_purchase_order", label: "Criar Pedidos de Compra", description: "Gerar novos pedidos de compra" },
+    { id: "edit_purchase_order", label: "Editar Pedidos de Compra", description: "Modificar pedidos em rascunho" },
+    { id: "send_purchase_order", label: "Enviar Pedidos de Compra", description: "Enviar pedidos para fornecedores" },
+    { id: "delete_purchase_order", label: "Deletar Pedidos de Compra", description: "Remover pedidos de compra" },
 ];
 
 export default function Permissions() {
@@ -64,23 +69,36 @@ export default function Permissions() {
 
         try {
             // Fetch all users in tenant
-            const { data: usersData, error: usersError } = await supabase
+            const { data: profilesData, error: profilesError } = await supabase
                 .from("profiles")
-                .select("id, user_id, full_name, email, role")
+                .select("id, user_id, full_name, email")
                 .eq("tenant_id", tenantId);
 
-            if (usersError) throw usersError;
+            if (profilesError) throw profilesError;
+
+            // Fetch roles for these users
+            const userIds = profilesData.map(p => p.user_id);
+            const { data: rolesData, error: rolesError } = await supabase
+                .from("user_roles")
+                .select("user_id, role")
+                .in("user_id", userIds);
+
+            if (rolesError) throw rolesError;
+
+            const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]));
 
             // Fetch permissions for each user
             const usersWithPermissions: UserPermission[] = await Promise.all(
-                (usersData || []).map(async (user) => {
-                    if (user.role === "admin") {
+                (profilesData || []).map(async (user) => {
+                    const role = rolesMap.get(user.user_id) || "buyer";
+
+                    if (role === "admin") {
                         // Admins have all permissions
                         return {
                             user_id: user.user_id,
                             email: user.email,
                             full_name: user.full_name,
-                            role: user.role,
+                            role: role,
                             permissions: AVAILABLE_PERMISSIONS.map((p) => p.id),
                         };
                     }
@@ -95,7 +113,7 @@ export default function Permissions() {
                         user_id: user.user_id,
                         email: user.email,
                         full_name: user.full_name,
-                        role: user.role,
+                        role: role,
                         permissions: (permsData || []).map((p) => p.permission as Permission),
                     };
                 })
@@ -103,6 +121,7 @@ export default function Permissions() {
 
             setUsers(usersWithPermissions);
         } catch (err: any) {
+            console.error("Error fetching users:", err);
             toast({
                 title: "Erro ao carregar usuários",
                 description: err.message,
@@ -161,6 +180,73 @@ export default function Permissions() {
         } catch (err: any) {
             toast({
                 title: "Erro ao atualizar permissão",
+                description: err.message,
+                variant: "destructive",
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRoleChange = async (userId: string, newRole: string) => {
+        if (!tenantId || !currentUser) return;
+        setSaving(true);
+
+        try {
+            // Check if user has a role entry
+            const { data: existingRole } = await supabase
+                .from("user_roles")
+                .select("id")
+                .eq("user_id", userId)
+                .maybeSingle();
+
+            if (existingRole) {
+                const { error } = await supabase
+                    .from("user_roles")
+                    .update({ role: newRole })
+                    .eq("user_id", userId);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from("user_roles")
+                    .insert({ user_id: userId, role: newRole });
+                if (error) throw error;
+            }
+
+            setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: newRole } : u));
+            toast({ title: "Função atualizada com sucesso" });
+        } catch (err: any) {
+            toast({
+                title: "Erro ao atualizar função",
+                description: err.message,
+                variant: "destructive",
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteUser = async (userId: string) => {
+        if (!tenantId || !currentUser) return;
+        if (!confirm("Tem certeza que deseja remover este usuário?")) return;
+
+        setSaving(true);
+        try {
+            // Delete from profiles (cascading should handle others, but let's be safe)
+            // Note: We can't delete from auth.users from client, so we just remove access to tenant
+            const { error } = await supabase
+                .from("profiles")
+                .delete()
+                .eq("user_id", userId)
+                .eq("tenant_id", tenantId);
+
+            if (error) throw error;
+
+            setUsers(prev => prev.filter(u => u.user_id !== userId));
+            toast({ title: "Usuário removido com sucesso" });
+        } catch (err: any) {
+            toast({
+                title: "Erro ao remover usuário",
                 description: err.message,
                 variant: "destructive",
             });
@@ -247,9 +333,30 @@ export default function Permissions() {
                                             <CardDescription>{user.email}</CardDescription>
                                         </div>
                                     </div>
-                                    <Badge variant={user.role === "admin" ? "default" : "secondary"} className="capitalize">
-                                        {user.role === "admin" ? "Administrador" : user.role === "buyer" ? "Comprador" : "Fornecedor"}
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            className="h-9 w-[150px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={user.role}
+                                            onChange={(e) => handleRoleChange(user.user_id, e.target.value)}
+                                            disabled={saving || user.user_id === currentUser?.id}
+                                        >
+                                            <option value="admin">Administrador</option>
+                                            <option value="buyer">Comprador</option>
+                                            <option value="supplier">Fornecedor</option>
+                                        </select>
+
+                                        {user.user_id !== currentUser?.id && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleDeleteUser(user.user_id)}
+                                                disabled={saving}
+                                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </CardHeader>
 
@@ -262,11 +369,11 @@ export default function Permissions() {
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {AVAILABLE_PERMISSIONS.map((perm) => {
                                             const hasPermission = user.permissions.includes(perm.id);
                                             return (
-                                                <div key={perm.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/30">
+                                                <div key={perm.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/30 transition-colors">
                                                     <Checkbox
                                                         id={`${user.user_id}-${perm.id}`}
                                                         checked={hasPermission}

@@ -23,7 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
-import { GeneratePOModal } from "@/components/purchase-orders/GeneratePOModal";
+import { GeneratePOModal } from "@/components/quotes/GeneratePOModal";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { mailService } from "@/services/mailService";
 import {
@@ -85,7 +85,14 @@ export default function QuoteForm() {
   const [importingList, setImportingList] = useState(false);
 
   // PO generation modal state
+  interface POSupplier {
+    id: number;
+    name: string;
+    itemCount: number;
+    totalValue: number;
+  }
   const [poModalOpen, setPOModalOpen] = useState(false);
+  const [poSuppliers, setPOSuppliers] = useState<POSupplier[]>([]);
 
   useEffect(() => {
     if (tenantId) {
@@ -168,7 +175,7 @@ export default function QuoteForm() {
       });
     }
 
-    const { data: quoteItems } = await supabase
+    const { data: quoteItems, error: quoteItemsError } = await supabase
       .from("quote_items")
       .select(
         `
@@ -178,11 +185,15 @@ export default function QuoteForm() {
         requested_qty,
         notes,
         product:products(name),
-        package:product_packages(unit, multiplier)
+        package:product_packages(unit, multiplier),
+        winner_supplier_id,
+        winner_response:quote_responses!quote_items_winner_response_id_fkey(price)
       `
       )
       .eq("quote_id", quoteId)
       .order("sort_order");
+
+    if (quoteItemsError) console.error("fetchQuote - quoteItems error:", quoteItemsError);
 
     setItems((quoteItems as any) || []);
 
@@ -201,6 +212,35 @@ export default function QuoteForm() {
 
     setQuoteSuppliers((quoteSuppliersData as any) || []);
   };
+
+  useEffect(() => {
+    const suppliersMap = new Map();
+
+    if (items.length && quoteSuppliers.length) {
+      items.forEach((item: any) => {
+        if (item.winner_supplier_id) {
+          const supplier = quoteSuppliers.find((s: any) => s.supplier_id === item.winner_supplier_id);
+          if (supplier) {
+            const current = suppliersMap.get(supplier.supplier_id) || {
+              id: supplier.supplier_id,
+              name: supplier.supplier.name,
+              itemCount: 0,
+              totalValue: 0
+            };
+
+            current.itemCount++;
+            if (item.winner_response?.price) {
+              current.totalValue += item.winner_response.price * (item.requested_qty || 1);
+            }
+
+            suppliersMap.set(supplier.supplier_id, current);
+          }
+        }
+      });
+    }
+
+    setPOSuppliers(Array.from(suppliersMap.values()));
+  }, [items, quoteSuppliers]);
 
   const handleSave = async () => {
     if (!tenantId) return;
@@ -812,9 +852,9 @@ export default function QuoteForm() {
 
       <GeneratePOModal
         quoteId={id ? parseInt(id) : 0}
-        quoteNumber={formData.title}
         open={poModalOpen}
         onOpenChange={setPOModalOpen}
+        suppliers={poSuppliers}
       />
     </div>
   );

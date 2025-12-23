@@ -178,7 +178,7 @@ export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItem
     const total = calculateTotal();
 
     return (
-        <form onSubmit={handleSubmit} className="border rounded-lg p-4 bg-gray-50 space-y-4">
+        <form onSubmit={handleSubmit} className="border rounded-lg p-4 bg-card text-card-foreground space-y-4">
             <div className="flex items-center gap-2 mb-2">
                 <Plus className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold">Adicionar Item ao Pedido</h3>
