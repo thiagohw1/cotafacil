@@ -18,6 +18,7 @@ interface QuoteItemsTabProps {
     setNewItem: (item: any) => void;
     onAddItem: () => void;
     onRemoveItem: (id: number) => void;
+    onImportList?: () => void;
     loading?: boolean;
 }
 
@@ -29,6 +30,7 @@ export function QuoteItemsTab({
     setNewItem,
     onAddItem,
     onRemoveItem,
+    onImportList,
     loading
 }: QuoteItemsTabProps) {
     const selectedProduct = products.find(
@@ -101,6 +103,11 @@ export function QuoteItemsTab({
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar
                 </Button>
+                {onImportList && (
+                    <Button variant="outline" onClick={onImportList} className="w-full md:w-auto">
+                        Importar Lista
+                    </Button>
+                )}
             </div>
 
             <div className="border rounded-md overflow-x-auto">

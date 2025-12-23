@@ -705,8 +705,7 @@ export default function QuoteForm() {
 
         <Tabs defaultValue="data">
           <TabsList>
-            <TabsTrigger value="data">Dados</TabsTrigger>
-            {isEditing && <TabsTrigger value="items">Itens</TabsTrigger>}
+            <TabsTrigger value="data">Detalhes</TabsTrigger>
             {isEditing && (
               <TabsTrigger value="suppliers">Fornecedores</TabsTrigger>
             )}
@@ -763,21 +762,12 @@ export default function QuoteForm() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {isEditing && (
-            <TabsContent value="items" className="space-y-6 mt-6">
+            {isEditing && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Itens da Cotação</CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setImportModalOpen(true)}
-                    >
-                      Importar Lista
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -789,12 +779,13 @@ export default function QuoteForm() {
                     setNewItem={setNewItem}
                     onAddItem={handleAddItem}
                     onRemoveItem={handleRemoveItem}
+                    onImportList={() => setImportModalOpen(true)}
                     loading={saving}
                   />
                 </CardContent>
               </Card>
-            </TabsContent>
-          )}
+            )}
+          </TabsContent>
 
           {isEditing && (
             <TabsContent value="suppliers" className="space-y-6 mt-6">

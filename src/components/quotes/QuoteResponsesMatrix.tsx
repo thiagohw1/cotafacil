@@ -385,7 +385,6 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                   {canSetWinners && (
                     <th className="text-center py-3 px-3 font-medium min-w-[120px]">
                       <div className="flex items-center justify-center gap-1">
-                        <Trophy className="h-4 w-4 text-warning" />
                         Vencedor
                       </div>
                     </th>
@@ -413,7 +412,9 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                         {item.product.name}
                       </td>
                       <td className="py-3 px-3 text-muted-foreground">
-                        {item.package?.unit || "-"}
+                        {item.package
+                          ? `${item.package.unit}-${item.package.multiplier}`
+                          : "-"}
                       </td>
                       <td className="py-3 px-3 text-muted-foreground">
                         {item.requested_qty || "-"}
@@ -451,8 +452,8 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                             key={supplier.id}
                             className={cn(
                               "py-3 px-3 text-center transition-colors relative group",
-                              isWinner && "bg-success/20 ring-2 ring-success/50 ring-inset",
-                              !isWinner && isLowest && "bg-success/10"
+                              isWinner && "ring-1 ring-success ring-inset bg-success/5",
+                              !isWinner && isLowest && "bg-muted/30"
                             )}
                           >
                             {response?.price ? (
@@ -467,9 +468,8 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                                   {formatCurrency(response.price)}
                                 </span>
                                 {isWinner && (
-                                  <div className="flex items-center justify-center gap-1 text-xs text-success font-semibold">
-                                    <Trophy className="h-3.5 w-3.5 fill-warning text-warning" />
-                                    Vencedor
+                                  <div className="absolute top-0 right-0 p-1">
+                                    <div className="h-2 w-2 rounded-full bg-success" />
                                   </div>
                                 )}
                                 {response.min_qty && (
@@ -505,7 +505,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                                   </div>
                                 )}
                                 {response.pricing_tiers && response.pricing_tiers.length > 0 && (
-                                  <div className={`absolute bottom-1 right-1 ${response.notes ? "right-7" : ""}`}>
+                                  <div className="absolute bottom-1 right-1">
                                     <Popover>
                                       <PopoverTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-700 hover:bg-blue-100" title="Condições Especiais">
