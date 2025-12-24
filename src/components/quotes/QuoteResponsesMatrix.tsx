@@ -35,7 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 interface QuoteItem {
   id: number;
   product: { name: string };
-  package: { unit: string } | null;
+  package: { unit: string; multiplier: number } | null;
   requested_qty: number | null;
   winner_supplier_id: number | null;
   winner_response_id: number | null;
@@ -107,7 +107,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
     const [itemsResult, suppliersResult, responsesResult] = await Promise.all([
       supabase
         .from("quote_items")
-        .select(`id, requested_qty, winner_supplier_id, winner_response_id, winner_reason, product:products(name), package:product_packages(unit)`)
+        .select(`id, requested_qty, winner_supplier_id, winner_response_id, winner_reason, product:products(name), package:product_packages(unit, multiplier)`)
         .eq("quote_id", quoteId)
         .order("sort_order"),
       supabase
@@ -452,7 +452,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                             key={supplier.id}
                             className={cn(
                               "py-3 px-3 text-center transition-colors relative group",
-                              isWinner && "ring-1 ring-success ring-inset bg-success/5",
+                              isWinner && "ring-[0.5px] ring-success ring-inset bg-success/5",
                               !isWinner && isLowest && "bg-muted/30"
                             )}
                           >
