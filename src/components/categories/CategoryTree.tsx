@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ChevronDown, Pencil, Trash2, Folder, FolderOpen } from "lucide-react";
+import { ChevronRight, ChevronDown, Pencil, Trash2, Folder, FolderOpen, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Category } from "@/components/modals/CategoryModal";
@@ -9,6 +9,7 @@ interface CategoryTreeProps {
     categories: Category[];
     onEdit: (category: Category) => void;
     onDelete: (category: Category) => void;
+    onAddSubcategory: (category: Category) => void;
 }
 
 interface TreeNodeProps {
@@ -18,9 +19,10 @@ interface TreeNodeProps {
     allCategories: Category[];
     onEdit: (category: Category) => void;
     onDelete: (category: Category) => void;
+    onAddSubcategory: (category: Category) => void;
 }
 
-function TreeNode({ category, level, children, allCategories, onEdit, onDelete }: TreeNodeProps) {
+function TreeNode({ category, level, children, allCategories, onEdit, onDelete, onAddSubcategory }: TreeNodeProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const hasChildren = children.length > 0;
 
@@ -82,32 +84,44 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete }
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => onAddSubcategory(category)}
+                        title="Adicionar subcategoria"
+                    >
+                        <Plus className="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
 
-            {isExpanded && hasChildren && (
-                <div className="border-l border-border ml-[1.1rem]">
-                    {children.map((child) => {
-                        const grandChildren = allCategories.filter((c) => c.parent_id === child.id);
-                        return (
-                            <TreeNode
-                                key={child.id}
-                                category={child}
-                                level={level + 1}
-                                children={grandChildren}
-                                allCategories={allCategories}
-                                onEdit={onEdit}
-                                onDelete={onDelete}
-                            />
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+            {
+                isExpanded && hasChildren && (
+                    <div className="border-l border-border ml-[1.1rem]">
+                        {children.map((child) => {
+                            const grandChildren = allCategories.filter((c) => c.parent_id === child.id);
+                            return (
+                                <TreeNode
+                                    key={child.id}
+                                    category={child}
+                                    level={level + 1}
+                                    children={grandChildren}
+                                    allCategories={allCategories}
+                                    onEdit={onEdit}
+                                    onDelete={onDelete}
+                                    onAddSubcategory={onAddSubcategory}
+                                />
+                            );
+                        })}
+                    </div>
+                )
+            }
+        </div >
     );
 }
 
-export function CategoryTree({ categories, onEdit, onDelete }: CategoryTreeProps) {
+export function CategoryTree({ categories, onEdit, onDelete, onAddSubcategory }: CategoryTreeProps) {
     // Find top level categories (those without parent or parent is not in the list)
     const rootCategories = categories.filter((c) => !c.parent_id);
 
@@ -132,6 +146,7 @@ export function CategoryTree({ categories, onEdit, onDelete }: CategoryTreeProps
                         allCategories={categories}
                         onEdit={onEdit}
                         onDelete={onDelete}
+                        onAddSubcategory={onAddSubcategory}
                     />
                 );
             })}

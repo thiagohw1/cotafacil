@@ -22,6 +22,7 @@ interface CategoryModalProps {
     onOpenChange: (open: boolean) => void;
     categoryToEdit?: Category | null;
     parentOptions?: Category[];
+    defaultParentId?: number | null;
     onSuccess: () => void;
 }
 
@@ -30,6 +31,7 @@ export function CategoryModal({
     onOpenChange,
     categoryToEdit,
     parentOptions = [],
+    defaultParentId = null,
     onSuccess,
 }: CategoryModalProps) {
     const { tenantId } = useTenant();
@@ -50,10 +52,14 @@ export function CategoryModal({
                     active: categoryToEdit.active,
                 });
             } else {
-                setFormData({ name: "", parent_id: "", active: true });
+                setFormData({
+                    name: "",
+                    parent_id: defaultParentId?.toString() || "",
+                    active: true
+                });
             }
         }
-    }, [open, categoryToEdit]);
+    }, [open, categoryToEdit, defaultParentId]);
 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();

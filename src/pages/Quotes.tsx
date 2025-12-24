@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Quote {
   id: number;
@@ -36,6 +37,8 @@ interface Quote {
   status: string;
   deadline_at: string | null;
   created_at: string;
+  created_by: string;
+  creator_name?: string;
 }
 
 interface QuoteSummary {
@@ -48,6 +51,7 @@ interface QuoteSummary {
 
 export default function Quotes() {
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -116,7 +120,25 @@ export default function Quotes() {
         variant: "destructive",
       });
     } else {
-      setQuotes(data || []);
+      let quotesData = (data as Quote[]) || [];
+
+      // Fetch creator names
+      const userIds = [...new Set(quotesData.map(q => q.created_by).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+
+        quotesData = quotesData.map(q => ({
+          ...q,
+          creator_name: profileMap.get(q.created_by || "") || "-"
+        }));
+      }
+
+      setQuotes(quotesData);
       setTotalCount(count || 0);
     }
     setLoading(false);
@@ -138,6 +160,7 @@ export default function Quotes() {
           title: newQuoteData.title,
           deadline_at: newQuoteData.deadline_at || null,
           status: "draft",
+          created_by: user?.id || null,
         })
         .select()
         .single();
@@ -277,6 +300,16 @@ export default function Quotes() {
 
   const columns: Column<Quote>[] = [
     { key: "title", header: "Título" },
+    {
+      key: "creator",
+      header: "Comprador",
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm">{item.creator_name || "-"}</span>
+        </div>
+      )
+    },
     {
       key: "status",
       header: "Status",

@@ -789,6 +789,36 @@ export async function applyMigrations() {
   }
 
   // =========================================================================
+  // MIGRATION 8: Add Product Unit
+  // =========================================================================
+
+  console.log('📝 Aplicando Migration 8: Add Product Unit...');
+
+  const migration8 = `
+    -- Add unit column to products table
+    ALTER TABLE public.products ADD COLUMN IF NOT EXISTS unit text DEFAULT 'un';
+    
+    -- Update existing NULLs (just in case)
+    UPDATE public.products SET unit = 'un' WHERE unit IS NULL;
+  `;
+
+  try {
+    const { error: error9 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration8
+    });
+
+    if (error9) {
+      console.error('❌ Erro na Migration 8:', error9);
+      return false;
+    }
+
+    console.log('✅ Migration 8 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 8:', e);
+    return false;
+  }
+
+  // =========================================================================
   // VERIFICAÇÃO FINAL
   // =========================================================================
 

@@ -29,6 +29,7 @@ import { CategoryModal } from "@/components/modals/CategoryModal";
 interface Product {
   id: number;
   name: string;
+  unit: string | null;
   brand: string | null;
   notes: string | null;
   active: boolean;
@@ -47,6 +48,7 @@ interface ProductPackage {
 interface Category {
   id: number;
   name: string;
+  // ...
 }
 
 interface PackagingUnit {
@@ -65,6 +67,7 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("available");
   const pageSize = 10;
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -76,6 +79,7 @@ export default function Products() {
   const [packages, setPackages] = useState<ProductPackage[]>([]);
   const [formData, setFormData] = useState({
     name: "",
+    unit: "un",
     category_id: "",
     brand: "",
     notes: "",
@@ -99,7 +103,7 @@ export default function Products() {
       fetchCategories();
       fetchPackagingUnits();
     }
-  }, [tenantId, search, page]);
+  }, [tenantId, search, page, statusFilter]);
 
   const fetchProducts = async () => {
     if (!tenantId) return;
@@ -108,9 +112,21 @@ export default function Products() {
     let query = supabase
       .from("products")
       .select("*, category:categories(name), product_packages(unit, multiplier, is_default)", { count: "exact" })
-      .eq("tenant_id", tenantId)
-      .is("deleted_at", null)
-      .order("name");
+      .eq("tenant_id", tenantId);
+
+    if (statusFilter === 'deleted') {
+      query = query.not('deleted_at', 'is', null);
+    } else {
+      query = query.is('deleted_at', null);
+
+      if (statusFilter === 'active') {
+        query = query.eq('active', true);
+      } else if (statusFilter === 'inactive') {
+        query = query.eq('active', false);
+      }
+    }
+
+    query = query.order("name");
 
     if (search) {
       query = query.ilike("name", `%${search}%`);
@@ -179,7 +195,7 @@ export default function Products() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Unidade de embalagem adicionada" });
+      toast({ title: "Unidade de embalagem adicionada", variant: "success" });
       setNewPackagingUnit({ code: "", name: "" });
       fetchPackagingUnits();
     }
@@ -224,6 +240,7 @@ export default function Products() {
     setPackages([]);
     setFormData({
       name: "",
+      unit: "un",
       category_id: "",
       brand: "",
       notes: "",
@@ -255,6 +272,7 @@ export default function Products() {
     const defaultPkg = product.product_packages?.find(p => p.is_default);
     setFormData({
       name: product.name,
+      unit: product.unit || "un",
       category_id: "",
       brand: product.brand || "",
       notes: product.notes || "",
@@ -279,6 +297,7 @@ export default function Products() {
     const payload = {
       tenant_id: tenantId,
       name: formData.name.replace(/\b\w/g, (char) => char.toUpperCase()),
+      unit: formData.unit,
       category_id: formData.category_id ? parseInt(formData.category_id) : null,
       brand: formData.brand || null,
       notes: formData.notes || null,
@@ -324,6 +343,7 @@ export default function Products() {
       }
       toast({
         title: selectedProduct ? "Produto atualizado" : "Produto criado",
+        variant: "success",
       });
       setModalOpen(false);
       fetchProducts();
@@ -357,6 +377,7 @@ export default function Products() {
         variant: "destructive",
       });
     } else {
+      toast({ title: "Embalagem adicionada", variant: "success" });
       setNewPackage({ unit: "", multiplier: "1", barcode: "", is_default: false });
       fetchPackages(selectedProduct.id);
       fetchProducts();
@@ -385,7 +406,7 @@ export default function Products() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Embalagem principal atualizada" });
+      toast({ title: "Embalagem principal atualizada", variant: "success" });
       fetchPackages(selectedProduct.id);
       fetchProducts();
     }
@@ -442,7 +463,16 @@ export default function Products() {
   };
 
   const columns: Column<Product>[] = [
-    { key: "name", header: "Nome" },
+    { key: "id", header: "ID" },
+    {
+      key: "name",
+      header: "Nome",
+      render: (item) => (
+        <span>
+          {item.name}{item.unit && <span className="text-muted-foreground text-xs ml-1">{item.unit}</span>}
+        </span>
+      )
+    },
     {
       key: "package",
       header: "Embalagem",
@@ -521,6 +551,23 @@ export default function Products() {
             placeholder="Buscar produtos..."
             className="w-80"
           />
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => {
+              setStatusFilter(value);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="available">Todos (Ativos/Inativos)</SelectItem>
+              <SelectItem value="active">Somente Ativos</SelectItem>
+              <SelectItem value="inactive">Somente Inativos</SelectItem>
+              <SelectItem value="deleted">Excluídos</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <DataTable
@@ -552,18 +599,41 @@ export default function Products() {
           </TabsList>
 
           <TabsContent value="data" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Nome do produto"
-                required
-                className="capitalize"
-              />
+            <div className="grid grid-cols-4 gap-4">
+              <div className="col-span-3 space-y-2">
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder="Nome do produto"
+                  required
+                  className="capitalize"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit">Unidade Base</Label>
+                <Select
+                  value={formData.unit}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, unit: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Un" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="un">un</SelectItem>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="pct">pct</SelectItem>
+                    <SelectItem value="cx">cx</SelectItem>
+                    <SelectItem value="fd">fd</SelectItem>
+                    <SelectItem value="sc">sc</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
