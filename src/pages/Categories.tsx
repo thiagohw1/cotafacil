@@ -32,6 +32,7 @@ export default function Categories() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [defaultParentId, setDefaultParentId] = useState<number | null>(null);
 
   useEffect(() => {
     if (tenantId) {
@@ -75,11 +76,19 @@ export default function Categories() {
 
   const handleCreate = () => {
     setSelectedCategory(null);
+    setDefaultParentId(null);
+    setModalOpen(true);
+  };
+
+  const handleAddSubcategory = (parent: Category) => {
+    setSelectedCategory(null);
+    setDefaultParentId(parent.id);
     setModalOpen(true);
   };
 
   const handleEdit = (category: Category) => {
     setSelectedCategory(category);
+    setDefaultParentId(null);
     setModalOpen(true);
   };
 
@@ -207,6 +216,7 @@ export default function Categories() {
                 categories={categories}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onAddSubcategory={handleAddSubcategory}
               />
             )}
           </div>
@@ -218,6 +228,7 @@ export default function Categories() {
         onOpenChange={setModalOpen}
         categoryToEdit={selectedCategory}
         parentOptions={parentOptions}
+        defaultParentId={defaultParentId}
         onSuccess={fetchCategories}
       />
 

@@ -201,6 +201,12 @@ export default function Suppliers() {
   };
 
   const columns: Column<Supplier>[] = [
+    {
+      key: "id",
+      header: "ID",
+      className: "w-20",
+      render: (item) => <span className="text-muted-foreground font-mono text-xs">#{item.id}</span>
+    },
     { key: "name", header: "Nome" },
     { key: "email", header: "E-mail" },
     { key: "phone", header: "Telefone", render: (item) => item.phone || "-" },

@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface QuoteItem {
   id: number;
@@ -36,7 +37,6 @@ interface PricingTier {
 interface QuoteResponse {
   quote_item_id: number;
   price: string;
-  min_qty: string;
   notes: string;
   pricing_tiers: PricingTier[];
 }
@@ -135,7 +135,6 @@ export default function SupplierQuote() {
         responsesMap[r.quote_item_id] = {
           quote_item_id: r.quote_item_id,
           price: r.price?.toString() || "",
-          min_qty: r.min_qty?.toString() || "",
           notes: r.notes || "",
           pricing_tiers: Array.isArray(r.pricing_tiers) ? r.pricing_tiers : [],
         };
@@ -183,7 +182,7 @@ export default function SupplierQuote() {
     setSaving(true);
 
     const responsesToSave = Object.values(responses).filter(
-      (r) => r.price || r.min_qty || r.notes || (r.pricing_tiers && r.pricing_tiers.length > 0)
+      (r) => r.price || r.notes || (r.pricing_tiers && r.pricing_tiers.length > 0)
     );
 
     let hasError = false;
@@ -192,7 +191,7 @@ export default function SupplierQuote() {
         p_token: token,
         p_quote_item_id: response.quote_item_id,
         p_price: parseNumber(response.price),
-        p_min_qty: parseNumber(response.min_qty),
+        p_min_qty: null,
         p_delivery_days: deliveryDays ? parseInt(deliveryDays) : null,
         p_notes: response.notes || null,
         p_pricing_tiers: response.pricing_tiers && response.pricing_tiers.length > 0 ? response.pricing_tiers : null
@@ -235,7 +234,11 @@ export default function SupplierQuote() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Cotação enviada com sucesso!", variant: "success" });
+      const isUpdate = !!quoteData?.submitted_at;
+      toast({
+        title: isUpdate ? "Preços atualizados com sucesso!" : "Cotação enviada com sucesso!",
+        variant: "success"
+      });
       fetchQuoteData();
     }
     setSubmitting(false);
@@ -388,7 +391,6 @@ export default function SupplierQuote() {
                     <th className="text-left py-3 px-2 font-medium">Emb.</th>
                     <th className="text-left py-3 px-2 font-medium">Qtde Sol.</th>
                     <th className="text-left py-3 px-2 font-medium">Preço</th>
-                    <th className="text-left py-3 px-2 font-medium">Qtde Mín.</th>
                     <th className="text-left py-3 px-2 font-medium w-24">Condições</th>
                     <th className="text-left py-3 px-2 font-medium w-12">Obs</th>
                   </tr>
@@ -406,30 +408,13 @@ export default function SupplierQuote() {
                       </td>
                       <td className="py-3 px-2">{item.requested_qty || "-"}</td>
                       <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0,00"
+                        <CurrencyInput
                           value={responses[item.id]?.price || ""}
-                          onChange={(e) =>
-                            updateResponse(item.id, "price", e.target.value)
+                          onChange={(value) =>
+                            updateResponse(item.id, "price", value)
                           }
                           disabled={isDisabled}
-                          className="w-28"
-                        />
-                      </td>
-                      <td className="py-3 px-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="0"
-                          value={responses[item.id]?.min_qty || ""}
-                          onChange={(e) =>
-                            updateResponse(item.id, "min_qty", e.target.value)
-                          }
-                          disabled={isDisabled}
-                          className="w-24"
+                          className="w-32"
                         />
                       </td>
                       <td className="py-3 px-2">
@@ -493,28 +478,10 @@ export default function SupplierQuote() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground uppercase">Preço Unit.</label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0,00"
+                      <CurrencyInput
                         value={responses[item.id]?.price || ""}
-                        onChange={(e) =>
-                          updateResponse(item.id, "price", e.target.value)
-                        }
-                        disabled={isDisabled}
-                        className="h-10 text-lg"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground uppercase">Qtd. Mín.</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={responses[item.id]?.min_qty || ""}
-                        onChange={(e) =>
-                          updateResponse(item.id, "min_qty", e.target.value)
+                        onChange={(value) =>
+                          updateResponse(item.id, "price", value)
                         }
                         disabled={isDisabled}
                         className="h-10 text-lg"
@@ -568,7 +535,7 @@ export default function SupplierQuote() {
                 ) : (
                   <Send className="h-4 w-4 mr-2" />
                 )}
-                Enviar
+                {isSubmitted ? "Atualizar Preços" : "Enviar"}
               </Button>
             </div>
           </div>

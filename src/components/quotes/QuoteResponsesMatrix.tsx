@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Loader2, Download, Eye, Trophy, Check, MessageSquare, Tags } from "lucide-react";
+import { Loader2, Download, Eye, Trophy, Check, MessageSquare, Tags, FileText, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +21,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
   Select,
@@ -34,7 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface QuoteItem {
   id: number;
-  product: { name: string };
+  product: { name: string; unit?: string | null };
   package: { unit: string; multiplier: number } | null;
   requested_qty: number | null;
   winner_supplier_id: number | null;
@@ -60,7 +66,6 @@ interface Response {
   quote_item_id: number;
   quote_supplier_id: number;
   price: number | null;
-  min_qty: number | null;
   delivery_days: number | null;
   notes: string | null;
   pricing_tiers: PricingTier[] | null;
@@ -97,6 +102,15 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
   const [customReason, setCustomReason] = useState<string>("");
   const [settingWinner, setSettingWinner] = useState(false);
 
+  // Tie-breaking state
+  const [tieModalOpen, setTieModalOpen] = useState(false);
+  const [tiedItems, setTiedItems] = useState<Array<{
+    item: QuoteItem;
+    tiedSuppliers: Array<{ supplier: QuoteSupplier; response: Response }>;
+  }>>([]);
+  const [currentTieIndex, setCurrentTieIndex] = useState(0);
+  const [tieSelections, setTieSelections] = useState<Map<number, number>>(new Map());
+
   useEffect(() => {
     fetchData();
   }, [quoteId]);
@@ -107,7 +121,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
     const [itemsResult, suppliersResult, responsesResult] = await Promise.all([
       supabase
         .from("quote_items")
-        .select(`id, requested_qty, winner_supplier_id, winner_response_id, winner_reason, product:products(name), package:product_packages(unit, multiplier)`)
+        .select(`id, requested_qty, winner_supplier_id, winner_response_id, winner_reason, product:products(name, unit), package:product_packages(unit, multiplier)`)
         .eq("quote_id", quoteId)
         .order("sort_order"),
       supabase
@@ -184,6 +198,168 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
     link.click();
   };
 
+  const exportToPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+
+    // Create PDF in landscape mode
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    let yPos = 15;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('COMPARATIVO DE PRECOS - COTACAO', 148, yPos, { align: 'center' });
+    yPos += 10;
+
+    // Quote Information Section
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Cotacao #${quoteId}`, 14, yPos);
+    doc.text(`Data de Exportacao: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 200, yPos);
+    yPos += 7;
+
+    // Summary Information
+    const itemsWithWinners = items.filter(i => i.winner_supplier_id).length;
+    const totalValue = getTotalValue();
+
+    doc.setFontSize(9);
+    doc.text(`Total de Itens: ${items.length}`, 14, yPos);
+    doc.text(`Itens com Vencedor: ${itemsWithWinners}`, 70, yPos);
+    doc.text(`Fornecedores: ${suppliers.length}`, 130, yPos);
+    if (totalValue > 0) {
+      doc.text(`Valor Total Estimado: ${formatCurrency(totalValue)}`, 180, yPos);
+    }
+    yPos += 10;
+
+    // Suppliers Information
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text('FORNECEDORES:', 14, yPos);
+    yPos += 5;
+
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8);
+    const suppliersList = suppliers.map(s => s.supplier.name).join(', ');
+    doc.text(suppliersList, 14, yPos, { maxWidth: 260 });
+    yPos += 8;
+
+    // Comparison Table
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text('COMPARATIVO DE PRECOS:', 14, yPos);
+    yPos += 5;
+
+    const headers = [["Produto", "Emb", "Qtd", "Vencedor", ...suppliers.map(s => s.supplier.name)]];
+    const rows = items.map((item) => {
+      const winnerSupplier = item.winner_supplier_id
+        ? suppliers.find(s => s.supplier_id === item.winner_supplier_id)?.supplier.name || "-"
+        : "-";
+      const row = [
+        item.product.name,
+        item.package?.unit || "-",
+        item.requested_qty?.toString() || "-",
+        winnerSupplier,
+      ];
+      suppliers.forEach((supplier) => {
+        const response = getResponse(item.id, supplier.id);
+        row.push(response?.price ? formatCurrency(response.price) : "-");
+      });
+      return row;
+    });
+
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: yPos,
+      styles: {
+        fontSize: 7,
+        cellPadding: 2,
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
+      },
+      headStyles: {
+        fillColor: [75, 85, 99],
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { cellWidth: 50 }, // Produto
+        1: { cellWidth: 15, halign: 'center' }, // Embalagem
+        2: { cellWidth: 12, halign: 'center' }, // Quantidade
+        3: { cellWidth: 30, halign: 'center' }, // Vencedor
+      },
+      didParseCell: function (data) {
+        // Highlight winner cells
+        if (data.row.section === 'body' && data.column.index > 3) {
+          const item = items[data.row.index];
+          const supplierIndex = data.column.index - 4;
+          const supplier = suppliers[supplierIndex];
+          if (item.winner_supplier_id === supplier?.supplier_id) {
+            data.cell.styles.fillColor = [220, 252, 231]; // Light green
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Footer
+    const pageCount = doc.internal.pages.length - 1;
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'normal');
+      doc.text(
+        `Pagina ${i} de ${pageCount}`,
+        148,
+        200,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`cotacao_${quoteId}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const exportToExcel = async () => {
+    const XLSX = await import('xlsx');
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Comparison Matrix
+    const headers = ["Produto", "Embalagem", "Qtde", "Vencedor", ...suppliers.map(s => s.supplier.name)];
+    const rows = items.map((item) => {
+      const winnerSupplier = item.winner_supplier_id
+        ? suppliers.find(s => s.supplier_id === item.winner_supplier_id)?.supplier.name || "-"
+        : "-";
+      const row = [
+        item.product.name,
+        item.package?.unit || "-",
+        item.requested_qty?.toString() || "-",
+        winnerSupplier,
+      ];
+      suppliers.forEach((supplier) => {
+        const response = getResponse(item.id, supplier.id);
+        row.push(response?.price ? formatCurrency(response.price) : "-");
+      });
+      return row;
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, "Comparativo");
+
+    // Save file
+    XLSX.writeFile(wb, `cotacao_${quoteId}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+
   const handleOpenWinnerModal = (item: QuoteItem) => {
     setSelectedItem(item);
     // Pre-select the current winner if exists
@@ -251,6 +427,44 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
   const handleAutoSelectWinners = async () => {
     setLoading(true);
     try {
+      // First, detect ties
+      const ties: Array<{
+        item: QuoteItem;
+        tiedSuppliers: Array<{ supplier: QuoteSupplier; response: Response }>;
+      }> = [];
+
+      items.forEach((item) => {
+        const lowestPrice = getLowestPrice(item.id);
+        if (lowestPrice === null) return;
+
+        // Find all suppliers with the lowest price
+        const suppliersAtLowestPrice = suppliers
+          .map((supplier) => {
+            const response = getResponse(item.id, supplier.id);
+            return { supplier, response };
+          })
+          .filter((sr) => sr.response?.price === lowestPrice);
+
+        // If more than one supplier has the lowest price, it's a tie
+        if (suppliersAtLowestPrice.length > 1) {
+          ties.push({
+            item,
+            tiedSuppliers: suppliersAtLowestPrice as Array<{ supplier: QuoteSupplier; response: Response }>,
+          });
+        }
+      });
+
+      // If there are ties, show tie-breaking dialog
+      if (ties.length > 0) {
+        setTiedItems(ties);
+        setCurrentTieIndex(0);
+        setTieSelections(new Map());
+        setTieModalOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      // No ties, proceed with auto-select
       const { data, error } = await supabase.rpc('auto_select_winners', {
         p_quote_id: quoteId,
       });
@@ -279,6 +493,70 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
       toast({
         title: "Erro ao auto-selecionar",
         description: error.message || "Ocorreu um erro ao processar a solicitação.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTieSelection = (supplierId: number) => {
+    const newSelections = new Map(tieSelections);
+    newSelections.set(tiedItems[currentTieIndex].item.id, supplierId);
+    setTieSelections(newSelections);
+  };
+
+  const handleNextTie = () => {
+    if (currentTieIndex < tiedItems.length - 1) {
+      setCurrentTieIndex(currentTieIndex + 1);
+    } else {
+      handleConfirmTieSelections();
+    }
+  };
+
+  const handleConfirmTieSelections = async () => {
+    setLoading(true);
+    try {
+      // Set winners for tied items based on user selections
+      for (const [itemId, supplierId] of tieSelections.entries()) {
+        const item = items.find(i => i.id === itemId);
+        const response = responses.find(r => r.quote_item_id === itemId && r.quote_supplier_id === suppliers.find(s => s.supplier_id === supplierId)?.id);
+
+        if (item && response) {
+          const { error } = await supabase
+            .from('quote_items')
+            .update({
+              winner_supplier_id: supplierId,
+              winner_response_id: response.id,
+              winner_reason: 'lowest_price',
+              winner_set_at: new Date().toISOString(),
+            })
+            .eq('id', itemId);
+
+          if (error) throw error;
+        }
+      }
+
+      // Now call auto-select for remaining items
+      const { data, error } = await supabase.rpc('auto_select_winners', {
+        p_quote_id: quoteId,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Vencedores selecionados!",
+        description: `Empates resolvidos e demais itens atualizados.`,
+      });
+
+      setTieModalOpen(false);
+      fetchData();
+      onWinnerChange?.();
+    } catch (error: any) {
+      console.error('Error setting tie winners:', error);
+      toast({
+        title: "Erro ao definir vencedores",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -317,19 +595,40 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
 
   const canSetWinners = quoteStatus === "open" || quoteStatus === "closed";
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'submitted': return "bg-emerald-500";
+      case 'partial': return "bg-amber-500";
+      case 'viewed': return "bg-blue-500";
+      default: return "bg-gray-300";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'submitted': return "Respondido";
+      case 'partial': return "Em Andamento";
+      case 'viewed': return "Visualizado";
+      default: return "Pendente";
+    }
+  };
+
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="border shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
           <div>
-            <CardTitle>Comparativo de Preços</CardTitle>
+            <CardTitle className="text-lg font-semibold">Comparativo de Preços</CardTitle>
             {items.length > 0 && (
-              <div className="text-sm text-muted-foreground mt-1">
-                {getItemsWithWinners()} de {items.length} itens com vencedor definido
+              <div className="text-sm text-muted-foreground mt-1 flex gap-2">
+                <span>{getItemsWithWinners()} de {items.length} itens definidos</span>
                 {getTotalValue() > 0 && (
-                  <span className="ml-2 font-medium text-foreground">
-                    • Total: {formatCurrency(getTotalValue())}
-                  </span>
+                  <>
+                    <span>•</span>
+                    <span className="font-medium text-foreground">
+                      Total: {formatCurrency(getTotalValue())}
+                    </span>
+                  </>
                 )}
               </div>
             )}
@@ -340,46 +639,63 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                 variant="outline"
                 size="sm"
                 onClick={handleAutoSelectWinners}
-                className="text-success border-success/50 hover:bg-success/10"
+                className="text-green-700 border-green-200 hover:bg-green-50 hover:text-green-800 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
               >
                 <Trophy className="h-4 w-4 mr-2" />
-                Auto-selecionar Menores Preços
+                Auto-selecionar
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={exportToCSV}>
-              <Download className="h-4 w-4 mr-2" />
-              Exportar CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Exportar PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToExcel}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Exportar Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left py-3 px-3 font-medium sticky left-0 bg-muted/50">
-                    Produto
-                  </th>
-                  <th className="text-left py-3 px-3 font-medium">Emb.</th>
-                  <th className="text-left py-3 px-3 font-medium">Qtde</th>
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b border-border">
+                <tr>
+                  <th className="py-2 px-4 font-medium sticky left-0 bg-muted/50 z-10 w-[250px] border-r border-border">Produto</th>
+                  <th className="py-2 px-4 font-medium w-[100px]">Emb.</th>
+                  <th className="py-2 px-4 font-medium text-center w-[80px]">Qtd.</th>
                   {canSetWinners && (
-                    <th className="text-center py-3 px-3 font-medium min-w-[120px]">
-                      <div className="flex items-center justify-center gap-1">
-                        Vencedor
-                      </div>
+                    <th className="py-2 px-4 font-medium text-center w-[120px]">
+                      Vencedor
                     </th>
                   )}
                   {suppliers.map((supplier) => (
-                    <th key={supplier.id} className="text-center py-3 px-3 font-medium min-w-[150px]">
-                      <div className="flex flex-col items-center gap-1">
-                        <span>{supplier.supplier.name}</span>
-                        <StatusBadge status={supplier.status as any} />
+                    <th key={supplier.id} className="py-2 px-4 font-medium min-w-[140px] text-center border-l border-border/50">
+                      <div className="flex items-center justify-center gap-2" title={getStatusLabel(supplier.status)}>
+                        <div className={cn("w-2 h-2 rounded-full", getStatusColor(supplier.status))} />
+                        <span className="font-semibold text-foreground truncate max-w-[120px]">
+                          {supplier.supplier.name}
+                        </span>
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/50">
                 {items.map((item) => {
                   const lowestPrice = getLowestPrice(item.id);
                   const winnerSupplier = item.winner_supplier_id
@@ -387,38 +703,38 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                     : null;
 
                   return (
-                    <tr key={item.id} className="border-b hover:bg-muted/30">
-                      <td className="py-3 px-3 font-medium sticky left-0 bg-card">
-                        {item.product.name}
+                    <tr key={item.id} className="group hover:bg-muted/20 transition-colors">
+                      <td className="py-2 px-4 font-medium sticky left-0 bg-background group-hover:bg-muted/20 transition-colors">
+                        <div className="line-clamp-2" title={item.product.name}>
+                          {item.product.name}
+                        </div>
                       </td>
-                      <td className="py-3 px-3 text-muted-foreground">
-                        {item.package
-                          ? `${item.package.unit}-${item.package.multiplier}`
-                          : "-"}
+                      <td className="py-2 px-4 text-muted-foreground whitespace-nowrap text-xs">
+                        {item.package ? `${item.package.unit} x ${item.package.multiplier}` : "-"}
                       </td>
-                      <td className="py-3 px-3 text-muted-foreground">
+                      <td className="py-2 px-4 text-center text-muted-foreground font-medium">
                         {item.requested_qty || "-"}
                       </td>
                       {canSetWinners && (
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-2 px-4 text-center">
                           {winnerSupplier ? (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-success hover:text-success/80 gap-1"
+                              className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
                               onClick={() => handleOpenWinnerModal(item)}
+                              title={`Vencedor: ${winnerSupplier.supplier.name}`}
                             >
                               <Check className="h-4 w-4" />
-                              <span className="max-w-[80px] truncate">{winnerSupplier.supplier.name}</span>
                             </Button>
                           ) : (
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
+                              className="h-7 w-full px-1 text-muted-foreground hover:text-foreground"
                               onClick={() => handleOpenWinnerModal(item)}
                             >
-                              <Trophy className="h-4 w-4 mr-1" />
-                              Definir
+                              <span className="text-[10px] uppercase tracking-wide">Definir</span>
                             </Button>
                           )}
                         </td>
@@ -427,105 +743,108 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                         const response = getResponse(item.id, supplier.id);
                         const isLowest = response?.price && response.price === lowestPrice;
                         const isWinner = item.winner_supplier_id === supplier.supplier_id;
+
+                        const multiplier = item.package?.multiplier || 1;
+                        const unitPrice = response?.price ? (response.price / multiplier) : null;
+
                         return (
                           <td
                             key={supplier.id}
                             className={cn(
-                              "py-3 px-3 text-center transition-colors relative group",
-                              isWinner && "ring-[0.5px] ring-success ring-inset bg-success/5",
-                              !isWinner && isLowest && "bg-muted/30"
+                              "py-2 px-4 border-l border-border/50 relative text-right align-top",
+                              isWinner && "bg-emerald-50/50 dark:bg-emerald-950/20",
+                              !isWinner && isLowest && "bg-blue-50/30 dark:bg-blue-950/10"
                             )}
                           >
                             {response?.price ? (
-                              <div className="space-y-1">
-                                <span
-                                  className={cn(
-                                    "font-medium",
-                                    isWinner && "text-success font-semibold",
-                                    !isWinner && isLowest && "text-success"
+                              <div className="relative flex items-start justify-center gap-2 w-full">
+                                {/* Price info */}
+                                <div className="flex flex-col items-center gap-0.5 flex-1">
+                                  <div className={cn(
+                                    "font-medium text-sm leading-none",
+                                    isWinner ? "text-emerald-600 dark:text-emerald-400" : (isLowest ? "text-blue-600 dark:text-blue-400" : "text-foreground")
+                                  )}>
+                                    {formatCurrency(unitPrice)} <span className="text-[10px] text-muted-foreground font-normal">/{item.product.unit || 'un'}</span>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                    <span>{formatCurrency(response.price)}</span>
+                                    {item.package && item.package.multiplier > 1 && (
+                                      <span className="text-[9px] opacity-75">/{item.package.unit}</span>
+                                    )}
+                                  </div>
+
+                                  {response.delivery_days && (
+                                    <div className="text-[9px] text-muted-foreground mt-0.5" title="Prazo Entrega">
+                                      {response.delivery_days}d
+                                    </div>
                                   )}
-                                >
-                                  {formatCurrency(response.price)}
-                                </span>
-                                {isWinner && (
-                                  <div className="absolute top-0 right-0 p-1">
-                                    <div className="h-2 w-2 rounded-full bg-success" />
-                                  </div>
-                                )}
-                                {response.min_qty && (
-                                  <div className="text-xs text-muted-foreground">
-                                    Mín: {response.min_qty}
-                                  </div>
-                                )}
-                                {response.delivery_days && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {response.delivery_days} dias
-                                  </div>
-                                )}
-                                {response.notes && (
-                                  <div className="absolute top-1 right-1">
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-amber-600 hover:text-amber-700 hover:bg-amber-100">
-                                          <MessageSquare className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-80 p-3">
-                                        <div className="space-y-1">
-                                          <h4 className="font-medium text-sm text-amber-700 flex items-center gap-2">
-                                            <MessageSquare className="h-4 w-4" />
-                                            Observação do Fornecedor
-                                          </h4>
-                                          <p className="text-sm text-muted-foreground break-words bg-muted/50 p-2 rounded-md">
-                                            {response.notes}
-                                          </p>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  </div>
-                                )}
-                                {response.pricing_tiers && response.pricing_tiers.length > 0 && (
-                                  <div className="absolute bottom-1 right-1">
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-blue-600 hover:text-blue-700 hover:bg-blue-100" title="Condições Especiais">
-                                          <Tags className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-64 p-3">
-                                        <div className="space-y-2">
-                                          <h4 className="font-medium text-sm text-blue-700 flex items-center gap-2">
-                                            <Tags className="h-4 w-4" />
-                                            Preço por Quantidade
-                                          </h4>
-                                          <div className="bg-muted/50 rounded-md p-2">
-                                            <table className="w-full text-xs">
-                                              <thead>
-                                                <tr className="border-b border-border/50">
-                                                  <th className="text-left pb-1">Mínimo</th>
-                                                  <th className="text-right pb-1">Preço</th>
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {(response.pricing_tiers || [])
-                                                  .sort((a, b) => a.min_quantity - b.min_quantity)
-                                                  .map((tier, idx) => (
-                                                    <tr key={idx}>
-                                                      <td className="pt-1">{tier.min_quantity} un.</td>
-                                                      <td className="text-right pt-1 font-medium">{formatCurrency(tier.price)}</td>
-                                                    </tr>
-                                                  ))}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  </div>
-                                )}
+                                </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <div className="text-gray-300 text-center">-</div>
+                            )}
+                            {isWinner && (
+                              <div className="absolute top-0 right-0 w-0 h-0 border-t-[8px] border-t-emerald-500 border-l-[8px] border-l-transparent" />
+                            )}
+                            {/* Icons positioned at cell corners */}
+                            {response?.pricing_tiers && response.pricing_tiers.length > 0 && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <div className="absolute top-2 right-1 cursor-pointer">
+                                    <Tags className="h-3 w-3 text-blue-500 hover:text-blue-600" />
+                                  </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-3 shadow-lg">
+                                  <div className="font-semibold text-blue-600 mb-2 flex items-center gap-2 text-xs">
+                                    <Tags className="h-3 w-3" /> Tabela de Preços
+                                  </div>
+                                  <table className="text-xs w-full">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left py-1 pr-4">Mínimo</th>
+                                        <th className="text-right py-1 pr-3">Preço</th>
+                                        <th className="text-right py-1">Desconto</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {response.pricing_tiers.map((tier, i) => {
+                                        const basePrice = response.price || 0;
+                                        const discount = basePrice > 0 ? ((basePrice - tier.price) / basePrice * 100) : 0;
+                                        const packageUnit = item.package?.unit || 'un';
+
+                                        return (
+                                          <tr key={i}>
+                                            <td className="py-1 text-muted-foreground">{tier.min_quantity} {packageUnit}</td>
+                                            <td className="py-1 text-right font-medium pr-3">{formatCurrency(tier.price)}</td>
+                                            <td className="py-1 text-right">
+                                              {discount > 0 ? (
+                                                <span className="text-green-600 font-medium">-{discount.toFixed(1)}%</span>
+                                              ) : (
+                                                <span className="text-muted-foreground">-</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                            {response?.notes && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <div className="absolute bottom-2 right-1 cursor-pointer">
+                                    <MessageSquare className="h-3 w-3 text-amber-500 hover:text-amber-600" />
+                                  </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-3 shadow-lg text-xs">
+                                  <div className="font-semibold text-amber-600 mb-1 flex items-center gap-2">
+                                    <MessageSquare className="h-3 w-3" /> Observação
+                                  </div>
+                                  <p className="text-muted-foreground">{response.notes}</p>
+                                </PopoverContent>
+                              </Popover>
                             )}
                           </td>
                         );
@@ -536,16 +855,14 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
               </tbody>
             </table>
           </div>
-
-          {/* Legend */}
-          <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="p-4 border-t flex justify-end gap-6 text-xs text-muted-foreground bg-muted/10">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-success/20 ring-2 ring-success/50" />
+              <span className="w-3 h-3 bg-emerald-100 dark:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-sm"></span>
               <span>Vencedor</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-success/10 border border-success/30" />
-              <span>Menor preço</span>
+              <span className="w-3 h-3 bg-blue-50 dark:bg-blue-900/50 border border-blue-100 dark:border-blue-800 rounded-sm"></span>
+              <span>Menor Preço</span>
             </div>
           </div>
         </CardContent>
@@ -553,7 +870,7 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
 
       {/* Winners Summary Card */}
       {canSetWinners && items.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <WinnersSummary
             itemsWithWinners={getItemsWithWinners()}
             totalItems={items.length}
@@ -568,39 +885,42 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-warning" />
+              <Trophy className="h-5 w-5 text-amber-500" />
               Definir Vencedor
             </DialogTitle>
           </DialogHeader>
           {selectedItem && (
-            <div className="space-y-4 py-4">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="font-medium">{selectedItem.product.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedItem.package?.unit || "Sem embalagem"} • Qtde: {selectedItem.requested_qty || "-"}
-                </p>
+            <div className="space-y-6 py-2">
+              <div className="p-4 bg-muted/40 rounded-lg border">
+                <p className="font-medium text-lg leading-tight mb-1">{selectedItem.product.name}</p>
+                <div className="flex gap-3 text-sm text-muted-foreground">
+                  <span>Emb: {selectedItem.package?.unit || "-"}</span>
+                  <span>Qtd: {selectedItem.requested_qty || "-"}</span>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Fornecedor Vencedor</Label>
+              <div className="space-y-3">
+                <Label>Quem venceu para este item?</Label>
                 <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o fornecedor..." />
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
                     {suppliers.map((supplier) => {
                       const response = getResponse(selectedItem.id, supplier.id);
                       const isLowest = response?.price && response.price === getLowestPrice(selectedItem.id);
                       return (
-                        <SelectItem key={supplier.supplier_id} value={supplier.supplier_id.toString()}>
-                          <div className="flex items-center gap-2">
+                        <SelectItem key={supplier.supplier_id} value={supplier.supplier_id.toString()} disabled={!response?.price}>
+                          <div className="flex items-center justify-between w-full gap-4">
                             <span>{supplier.supplier.name}</span>
                             {response?.price && (
-                              <span className={cn("text-sm", isLowest && "text-success font-medium")}>
-                                ({formatCurrency(response.price)})
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={cn("font-medium", isLowest ? "text-emerald-600" : "text-muted-foreground")}>
+                                  {formatCurrency(response.price)}
+                                </span>
+                                {isLowest && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Melhor preço</span>}
+                              </div>
                             )}
-                            {isLowest && <span className="text-xs text-success">★ Menor</span>}
                           </div>
                         </SelectItem>
                       );
@@ -609,47 +929,126 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Motivo da Escolha</Label>
-                <Select value={selectedReason} onValueChange={setSelectedReason}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WINNER_REASONS.map((reason) => (
-                      <SelectItem key={reason.value} value={reason.value}>
-                        {reason.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <Label>Critério de escolha</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {WINNER_REASONS.map((reason) => (
+                    <div
+                      key={reason.value}
+                      onClick={() => setSelectedReason(reason.value)}
+                      className={cn(
+                        "cursor-pointer rounded-md border p-2 text-sm text-center transition-all hover:border-primary",
+                        selectedReason === reason.value
+                          ? "bg-primary/5 border-primary text-primary font-medium"
+                          : "bg-background text-muted-foreground header-muted"
+                      )}
+                    >
+                      {reason.label}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {selectedReason === "manual" && (
-                <div className="space-y-2">
-                  <Label>Descreva o motivo</Label>
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                  <Label>Motivo (Opcional)</Label>
                   <Textarea
                     value={customReason}
                     onChange={(e) => setCustomReason(e.target.value)}
-                    placeholder="Descreva o motivo da escolha..."
+                    placeholder="Insiro detalhes sobre a negociação..."
+                    className="resize-none"
                     rows={2}
                   />
                 </div>
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setWinnerModalOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setWinnerModalOpen(false)}>
               Cancelar
             </Button>
             <Button
               onClick={handleSetWinner}
               disabled={!selectedSupplierId || settingWinner}
-              className="bg-success hover:bg-success/90"
+              className="bg-green-700 hover:bg-green-800 text-white"
             >
               {settingWinner && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Trophy className="h-4 w-4 mr-2" />
-              Confirmar Vencedor
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tie-Breaking Dialog */}
+      <Dialog open={tieModalOpen} onOpenChange={setTieModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-amber-500" />
+              Empate Detectado - Escolha o Vencedor
+            </DialogTitle>
+          </DialogHeader>
+          {tiedItems.length > 0 && currentTieIndex < tiedItems.length && (
+            <div className="space-y-6 py-2">
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <p className="text-sm text-amber-800 dark:text-amber-200 mb-2">
+                  <strong>Item {currentTieIndex + 1} de {tiedItems.length}</strong>
+                </p>
+                <p className="font-medium text-lg leading-tight mb-1">
+                  {tiedItems[currentTieIndex].item.product.name}
+                </p>
+                <div className="flex gap-3 text-sm text-muted-foreground">
+                  <span>Emb: {tiedItems[currentTieIndex].item.package?.unit || "-"}</span>
+                  <span>Qtd: {tiedItems[currentTieIndex].item.requested_qty || "-"}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>
+                  Múltiplos fornecedores têm o mesmo menor preço ({formatCurrency(tiedItems[currentTieIndex].tiedSuppliers[0].response.price)}).
+                  Escolha qual deve vencer:
+                </Label>
+                <div className="grid gap-2">
+                  {tiedItems[currentTieIndex].tiedSuppliers.map(({ supplier, response }) => (
+                    <div
+                      key={supplier.supplier_id}
+                      onClick={() => handleTieSelection(supplier.supplier_id)}
+                      className={cn(
+                        "cursor-pointer rounded-lg border-2 p-4 transition-all hover:border-primary",
+                        tieSelections.get(tiedItems[currentTieIndex].item.id) === supplier.supplier_id
+                          ? "bg-primary/5 border-primary"
+                          : "bg-background border-border"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{supplier.supplier.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Preço: {formatCurrency(response.price)}
+                            {response.delivery_days && ` • Prazo: ${response.delivery_days} dias`}
+                          </p>
+                        </div>
+                        {tieSelections.get(tiedItems[currentTieIndex].item.id) === supplier.supplier_id && (
+                          <Check className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setTieModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleNextTie}
+              disabled={!tieSelections.has(tiedItems[currentTieIndex]?.item.id) || loading}
+              className="bg-green-700 hover:bg-green-800 text-white"
+            >
+              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {currentTieIndex < tiedItems.length - 1 ? "Próximo" : "Confirmar Seleções"}
             </Button>
           </DialogFooter>
         </DialogContent>
