@@ -7,6 +7,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Plus, Eye, Copy, Trash2, Package, Users, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -65,8 +67,16 @@ export default function Quotes() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [quoteSummary, setQuoteSummary] = useState<QuoteSummary | null>(null);
 
+  // Create modal state
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newQuoteData, setNewQuoteData] = useState({
+    title: "",
+    deadline_at: "",
+  });
+
   useKeyboardShortcuts({
-    onNew: () => navigate("/quotes/new"),
+    onNew: () => setCreateModalOpen(true),
   });
 
   useEffect(() => {
@@ -114,6 +124,43 @@ export default function Quotes() {
 
   const handleView = (quote: Quote) => {
     navigate(`/quotes/${quote.id}`);
+  };
+
+  const handleCreateQuote = async () => {
+    if (!tenantId || !newQuoteData.title.trim()) return;
+    setCreating(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("quotes")
+        .insert({
+          tenant_id: tenantId,
+          title: newQuoteData.title,
+          deadline_at: newQuoteData.deadline_at || null,
+          status: "draft",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Cotação criada!",
+        description: "Redirecionando para edição...",
+      });
+
+      setCreateModalOpen(false);
+      setNewQuoteData({ title: "", deadline_at: "" });
+      navigate(`/quotes/${data.id}`);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar cotação",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleShowSummary = async (quote: Quote) => {
@@ -299,7 +346,7 @@ export default function Quotes() {
         title="Cotações"
         description="Gerencie suas solicitações de cotação"
         actions={
-          <Button onClick={() => navigate("/quotes/new")}>
+          <Button onClick={() => setCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Cotação
           </Button>
@@ -433,6 +480,44 @@ export default function Quotes() {
               </div>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Quote Modal */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Cotação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-title">Título da Cotação <span className="text-destructive">*</span></Label>
+              <Input
+                id="new-title"
+                placeholder="Ex: Cotação de Materiais de Escritório"
+                value={newQuoteData.title}
+                onChange={(e) => setNewQuoteData({ ...newQuoteData, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-deadline">Prazo (Opcional)</Label>
+              <Input
+                id="new-deadline"
+                type="datetime-local"
+                value={newQuoteData.deadline_at}
+                onChange={(e) => setNewQuoteData({ ...newQuoteData, deadline_at: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCreateModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateQuote} disabled={creating || !newQuoteData.title.trim()}>
+              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Criar Cotação
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

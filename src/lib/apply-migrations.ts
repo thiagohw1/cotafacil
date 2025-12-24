@@ -10,24 +10,24 @@
 import { supabaseAdmin, hasAdminAccess } from '@/integrations/supabase/client';
 
 export async function applyMigrations() {
-    console.log('🚀 Iniciando aplicação de migrations...\n');
+  console.log('🚀 Iniciando aplicação de migrations...\n');
 
-    // Verificar acesso admin
-    if (!hasAdminAccess()) {
-        console.error('❌ Service Role Key não configurada!');
-        console.error('Configure VITE_SUPABASE_SERVICE_ROLE_KEY no .env');
-        return false;
-    }
+  // Verificar acesso admin
+  if (!hasAdminAccess()) {
+    console.error('❌ Service Role Key não configurada!');
+    console.error('Configure VITE_SUPABASE_SERVICE_ROLE_KEY no .env');
+    return false;
+  }
 
-    console.log('✅ Service Role Key detectada\n');
+  console.log('✅ Service Role Key detectada\n');
 
-    // =========================================================================
-    // MIGRATION 1: Winner Fields
-    // =========================================================================
+  // =========================================================================
+  // MIGRATION 1: Winner Fields
+  // =========================================================================
 
-    console.log('📝 Aplicando Migration 1: Winner Fields em quote_items...');
+  console.log('📝 Aplicando Migration 1: Winner Fields em quote_items...');
 
-    const migration1 = `
+  const migration1 = `
     -- Adicionar campos de vencedor
     ALTER TABLE public.quote_items 
     ADD COLUMN IF NOT EXISTS winner_supplier_id BIGINT REFERENCES public.suppliers(id),
@@ -44,29 +44,29 @@ export async function applyMigrations() {
     ON public.quote_items(quote_id);
   `;
 
-    try {
-        const { error: error1 } = await supabaseAdmin!.rpc('execute_sql', {
-            query: migration1
-        });
+  try {
+    const { error: error1 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration1
+    });
 
-        if (error1) {
-            console.error('❌ Erro na Migration 1:', error1);
-            return false;
-        }
-
-        console.log('✅ Migration 1 aplicada com sucesso!\n');
-    } catch (e) {
-        console.error('❌ Exceção na Migration 1:', e);
-        return false;
+    if (error1) {
+      console.error('❌ Erro na Migration 1:', error1);
+      return false;
     }
 
-    // =========================================================================
-    // MIGRATION 2: Purchase Orders - Parte 1 (ENUM e Tabelas)
-    // =========================================================================
+    console.log('✅ Migration 1 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 1:', e);
+    return false;
+  }
 
-    console.log('📝 Aplicando Migration 2 (Parte 1): ENUM e Tabelas...');
+  // =========================================================================
+  // MIGRATION 2: Purchase Orders - Parte 1 (ENUM e Tabelas)
+  // =========================================================================
 
-    const migration2_parte1 = `
+  console.log('📝 Aplicando Migration 2 (Parte 1): ENUM e Tabelas...');
+
+  const migration2_parte1 = `
     -- ENUM para status
     DO $$ BEGIN
       CREATE TYPE public.po_status AS ENUM ('draft', 'sent', 'confirmed', 'delivered', 'cancelled');
@@ -121,32 +121,32 @@ export async function applyMigrations() {
     CREATE SEQUENCE IF NOT EXISTS public.po_number_seq START 1000;
   `;
 
-    try {
-        const { error: error2 } = await supabaseAdmin!.rpc('execute_sql', {
-            query: migration2_parte1
-        });
+  try {
+    const { error: error2 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration2_parte1
+    });
 
-        if (error2) {
-            console.error('❌ Erro na Migration 2 (Parte 1):', error2);
-            return false;
-        }
-
-        console.log('✅ Migration 2 (Parte 1) aplicada com sucesso!\n');
-    } catch (e) {
-        console.error('❌ Exceção na Migration 2 (Parte 1):', e);
-        return false;
+    if (error2) {
+      console.error('❌ Erro na Migration 2 (Parte 1):', error2);
+      return false;
     }
 
-    // =========================================================================
-    // MIGRATION 2: Purchase Orders - Parte 2 (Funções e Triggers)
-    // =========================================================================
+    console.log('✅ Migration 2 (Parte 1) aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 2 (Parte 1):', e);
+    return false;
+  }
 
-    console.log('📝 Aplicando Migration 2 (Parte 2): Funções e Triggers...');
+  // =========================================================================
+  // MIGRATION 2: Purchase Orders - Parte 2 (Funções e Triggers)
+  // =========================================================================
 
-    // Dividir em blocos menores para evitar erros
+  console.log('📝 Aplicando Migration 2 (Parte 2): Funções e Triggers...');
 
-    // Função generate_po_number
-    const migration2_fn1 = `
+  // Dividir em blocos menores para evitar erros
+
+  // Função generate_po_number
+  const migration2_fn1 = `
     CREATE OR REPLACE FUNCTION public.generate_po_number(_tenant_id BIGINT)
     RETURNS TEXT
     LANGUAGE plpgsql
@@ -164,8 +164,8 @@ export async function applyMigrations() {
     $$;
   `;
 
-    // Função set_po_number
-    const migration2_fn2 = `
+  // Função set_po_number
+  const migration2_fn2 = `
     CREATE OR REPLACE FUNCTION public.set_po_number()
     RETURNS TRIGGER
     LANGUAGE plpgsql
@@ -185,8 +185,8 @@ export async function applyMigrations() {
       EXECUTE FUNCTION public.set_po_number();
   `;
 
-    // Triggers para updated_at
-    const migration2_fn3 = `
+  // Triggers para updated_at
+  const migration2_fn3 = `
     DROP TRIGGER IF EXISTS trigger_purchase_orders_updated_at ON public.purchase_orders;
     CREATE TRIGGER trigger_purchase_orders_updated_at
       BEFORE UPDATE ON public.purchase_orders
@@ -200,8 +200,8 @@ export async function applyMigrations() {
       EXECUTE FUNCTION public.handle_updated_at();
   `;
 
-    // Função calculate_po_total
-    const migration2_fn4 = `
+  // Função calculate_po_total
+  const migration2_fn4 = `
     CREATE OR REPLACE FUNCTION public.calculate_po_total(_po_id BIGINT)
     RETURNS NUMERIC(12,2)
     LANGUAGE sql
@@ -213,8 +213,8 @@ export async function applyMigrations() {
     $$;
   `;
 
-    // Função update_po_total e triggers
-    const migration2_fn5 = `
+  // Função update_po_total e triggers
+  const migration2_fn5 = `
     CREATE OR REPLACE FUNCTION public.update_po_total()
     RETURNS TRIGGER
     LANGUAGE plpgsql
@@ -250,35 +250,35 @@ export async function applyMigrations() {
       EXECUTE FUNCTION public.update_po_total();
   `;
 
-    const funcoes = [migration2_fn1, migration2_fn2, migration2_fn3, migration2_fn4, migration2_fn5];
+  const funcoes = [migration2_fn1, migration2_fn2, migration2_fn3, migration2_fn4, migration2_fn5];
 
-    for (let i = 0; i < funcoes.length; i++) {
-        try {
-            const { error } = await supabaseAdmin!.rpc('execute_sql', {
-                query: funcoes[i]
-            });
+  for (let i = 0; i < funcoes.length; i++) {
+    try {
+      const { error } = await supabaseAdmin!.rpc('execute_sql', {
+        query: funcoes[i]
+      });
 
-            if (error) {
-                console.error(`❌ Erro ao criar função ${i + 1}:`, error);
-                return false;
-            }
+      if (error) {
+        console.error(`❌ Erro ao criar função ${i + 1}:`, error);
+        return false;
+      }
 
-            console.log(`✅ Função/Trigger ${i + 1}/${funcoes.length} criada`);
-        } catch (e) {
-            console.error(`❌ Exceção ao criar função ${i + 1}:`, e);
-            return false;
-        }
+      console.log(`✅ Função/Trigger ${i + 1}/${funcoes.length} criada`);
+    } catch (e) {
+      console.error(`❌ Exceção ao criar função ${i + 1}:`, e);
+      return false;
     }
+  }
 
-    console.log('✅ Migration 2 (Parte 2) aplicada com sucesso!\n');
+  console.log('✅ Migration 2 (Parte 2) aplicada com sucesso!\n');
 
-    // =========================================================================
-    // MIGRATION 2: Purchase Orders - Parte 3 (Índices e RLS)
-    // =========================================================================
+  // =========================================================================
+  // MIGRATION 2: Purchase Orders - Parte 3 (Índices e RLS)
+  // =========================================================================
 
-    console.log('📝 Aplicando Migration 2 (Parte 3): Índices e RLS...');
+  console.log('📝 Aplicando Migration 2 (Parte 3): Índices e RLS...');
 
-    const migration2_parte3 = `
+  const migration2_parte3 = `
     -- Índices
     CREATE INDEX IF NOT EXISTS idx_purchase_orders_tenant ON public.purchase_orders(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON public.purchase_orders(supplier_id);
@@ -355,58 +355,475 @@ export async function applyMigrations() {
     );
   `;
 
-    try {
-        const { error: error3 } = await supabaseAdmin!.rpc('execute_sql', {
-            query: migration2_parte3
-        });
+  try {
+    const { error: error3 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration2_parte3
+    });
 
-        if (error3) {
-            console.error('❌ Erro na Migration 2 (Parte 3):', error3);
-            return false;
-        }
-
-        console.log('✅ Migration 2 (Parte 3) aplicada com sucesso!\n');
-    } catch (e) {
-        console.error('❌ Exceção na Migration 2 (Parte 3):', e);
-        return false;
+    if (error3) {
+      console.error('❌ Erro na Migration 2 (Parte 3):', error3);
+      return false;
     }
 
-    // =========================================================================
-    // VERIFICAÇÃO FINAL
-    // =========================================================================
+    console.log('✅ Migration 2 (Parte 3) aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 2 (Parte 3):', e);
+    return false;
+  }
 
-    console.log('🔍 Verificando estrutura...\n');
+  // =========================================================================
+  // MIGRATION 3: Fix Update PO Total
+  // =========================================================================
 
-    // Verificar tabelas
-    const { data: tables } = await supabaseAdmin!.rpc('execute_sql', {
-        query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'"
+  console.log('📝 Aplicando Migration 3: Fix Update PO Total...');
+
+  const migration3 = `
+    -- Fix update_po_total function logic
+    CREATE OR REPLACE FUNCTION public.update_po_total()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      _new_subtotal NUMERIC;
+    BEGIN
+      -- Calcular o novo subtotal primeiro
+      _new_subtotal := public.calculate_po_total(COALESCE(NEW.po_id, OLD.po_id));
+
+      -- Atualizar a tabela usando o valor calculado
+      UPDATE public.purchase_orders
+      SET 
+        subtotal = _new_subtotal,
+        total_amount = _new_subtotal + COALESCE(tax_amount, 0) + COALESCE(shipping_cost, 0),
+        updated_at = NOW()
+      WHERE id = COALESCE(NEW.po_id, OLD.po_id);
+      
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $$;
+
+    -- Recalcular totais para POs existentes
+    DO $$
+    DECLARE
+      r RECORD;
+    BEGIN
+      FOR r IN SELECT id FROM public.purchase_orders LOOP
+        PERFORM public.calculate_po_total(r.id);
+        
+        -- Vamos chamar a lógica de update manualmente para cada PO
+        UPDATE public.purchase_orders
+        SET 
+            subtotal = public.calculate_po_total(id),
+            total_amount = public.calculate_po_total(id) + COALESCE(tax_amount, 0) + COALESCE(shipping_cost, 0)
+        WHERE id = r.id;
+      END LOOP;
+    END;
+    $$;
+    `;
+
+  try {
+    const { error: error4 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration3
     });
 
-    console.log(`📊 Total de tabelas: ${tables?.[0]?.count || 'N/A'}`);
+    if (error4) {
+      console.error('❌ Erro na Migration 3:', error4);
+      return false;
+    }
 
-    // Verificar campos de winner
-    const { data: winnerFields } = await supabaseAdmin!.rpc('execute_sql', {
-        query: "SELECT column_name FROM information_schema.columns WHERE table_name = 'quote_items' AND column_name LIKE 'winner%'"
+    console.log('✅ Migration 3 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 3:', e);
+    return false;
+  }
+
+  // =========================================================================
+  // MIGRATION 4: Optimize Auto Select Winners
+  // =========================================================================
+
+  console.log('📝 Aplicando Migration 4: Optimize Auto Select Winners...');
+
+  const migration4 = `
+    CREATE OR REPLACE FUNCTION public.auto_select_winners(p_quote_id BIGINT)
+    RETURNS INTEGER
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public
+    AS $$
+    DECLARE
+      v_count INTEGER := 0;
+      r_item RECORD;
+      r_response RECORD;
+    BEGIN
+      -- Iterar sobre itens da cotação que AINDA NÃO TÊM vencedor definido
+      FOR r_item IN
+        SELECT id 
+        FROM public.quote_items 
+        WHERE quote_id = p_quote_id 
+          AND winner_supplier_id IS NULL
+      LOOP
+        
+        -- Selecionar a resposta com menor preço para este item
+        SELECT 
+          qr.id AS response_id,
+          qs.supplier_id
+        INTO r_response
+        FROM public.quote_responses qr
+        JOIN public.quote_suppliers qs ON qr.quote_supplier_id = qs.id
+        WHERE qr.quote_item_id = r_item.id
+          AND qr.price IS NOT NULL
+          AND qr.price > 0
+        ORDER BY qr.price ASC, qr.filled_at ASC
+        LIMIT 1;
+
+        -- Se encontrou uma resposta válida, atualiza o item
+        IF FOUND THEN
+          UPDATE public.quote_items
+          SET 
+            winner_supplier_id = r_response.supplier_id,
+            winner_response_id = r_response.response_id,
+            winner_reason = 'Menor Preço (Automático)',
+            winner_set_at = NOW()
+          WHERE id = r_item.id;
+
+          v_count := v_count + 1;
+        END IF;
+
+      END LOOP;
+
+      RETURN v_count;
+    END;
+    $$;
+  `;
+
+  try {
+    const { error: error5 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration4
     });
 
-    console.log(`✅ Campos de vencedor: ${winnerFields?.length || 0}/4`);
+    if (error5) {
+      console.error('❌ Erro na Migration 4:', error5);
+      return false;
+    }
 
-    // Verificar PO tables
-    const { data: poTables } = await supabaseAdmin!.rpc('execute_sql', {
-        query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'purchase%'"
+    console.log('✅ Migration 4 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 4:', e);
+    return false;
+  }
+
+  // =========================================================================
+  // MIGRATION 5: Fix Save Supplier Response
+  // =========================================================================
+
+  console.log('📝 Aplicando Migration 5: Fix Save Supplier Response...');
+
+  const migration5 = `
+    CREATE OR REPLACE FUNCTION public.save_supplier_response(p_token text, p_quote_item_id bigint, p_price numeric, p_min_qty numeric DEFAULT NULL::numeric, p_delivery_days integer DEFAULT NULL::integer, p_notes text DEFAULT NULL::text, p_pricing_tiers jsonb DEFAULT NULL::jsonb) RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER
+        SET search_path TO 'public'
+        AS $$
+    DECLARE
+      v_quote_supplier_id BIGINT;
+      v_quote_id BIGINT;
+    BEGIN
+      -- Verificar token e obter IDs
+      SELECT qs.id, qs.quote_id INTO v_quote_supplier_id, v_quote_id
+      FROM public.quote_suppliers qs
+      JOIN public.quotes q ON q.id = qs.quote_id
+      WHERE qs.public_token = p_token
+        AND q.status = 'open'
+        AND (q.deadline_at IS NULL OR q.deadline_at > NOW())
+        AND qs.submitted_at IS NULL;
+      
+      IF v_quote_supplier_id IS NULL THEN
+        RETURN FALSE;
+      END IF;
+
+      -- Upsert da resposta
+      INSERT INTO public.quote_responses (
+        quote_id,
+        quote_supplier_id,
+        quote_item_id,
+        price,
+        min_qty,
+        delivery_days,
+        notes,
+        pricing_tiers,
+        filled_at
+      ) VALUES (
+        v_quote_id,
+        v_quote_supplier_id,
+        p_quote_item_id,
+        p_price,
+        p_min_qty,
+        p_delivery_days,
+        p_notes,
+        p_pricing_tiers,
+        NOW()
+      )
+      ON CONFLICT (quote_supplier_id, quote_item_id)
+      DO UPDATE SET
+        price = EXCLUDED.price,
+        min_qty = EXCLUDED.min_qty,
+        delivery_days = EXCLUDED.delivery_days,
+        notes = EXCLUDED.notes,
+        pricing_tiers = EXCLUDED.pricing_tiers,
+        filled_at = NOW();
+
+      -- Atualizar status do quote_supplier para partial se ainda não foi submetido
+      UPDATE public.quote_suppliers
+      SET status = 'partial', last_access_at = NOW()
+      WHERE id = v_quote_supplier_id AND status != 'submitted';
+
+      RETURN TRUE;
+    END;
+    $$;
+  `;
+
+  try {
+    const { error: error6 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration5
     });
 
-    console.log(`✅ Tabelas de PO: ${poTables?.length || 0}/2`);
+    if (error6) {
+      console.error('❌ Erro na Migration 5:', error6);
+      return false;
+    }
 
-    console.log('\n' + '='.repeat(60));
-    console.log('🎉 MIGRATIONS APLICADAS COM SUCESSO!');
-    console.log('='.repeat(60));
-    console.log('\n📝 Próximos passos:');
-    console.log('1. Testar seleção de vencedores na interface');
-    console.log('2. Verificar que os dados estão sendo salvos');
-    console.log('3. Implementar UI para Purchase Orders');
+    console.log('✅ Migration 5 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 5:', e);
+    return false;
+  }
 
-    return true;
+  // =========================================================================
+  // MIGRATION 6: Fix Ambiguous Function (Drop old signature)
+  // =========================================================================
+
+  console.log('📝 Aplicando Migration 6: Resolve Ambiguous Function...');
+
+  const migration6 = `
+    -- Drop the old function signature to resolve ambiguity
+    DROP FUNCTION IF EXISTS public.save_supplier_response(text, bigint, numeric, numeric, integer, text);
+
+    -- Ensure the new function exists
+    CREATE OR REPLACE FUNCTION public.save_supplier_response(p_token text, p_quote_item_id bigint, p_price numeric, p_min_qty numeric DEFAULT NULL::numeric, p_delivery_days integer DEFAULT NULL::integer, p_notes text DEFAULT NULL::text, p_pricing_tiers jsonb DEFAULT NULL::jsonb) RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER
+        SET search_path TO 'public'
+        AS $$
+    DECLARE
+      v_quote_supplier_id BIGINT;
+      v_quote_id BIGINT;
+    BEGIN
+      -- Verificar token e obter IDs
+      SELECT qs.id, qs.quote_id INTO v_quote_supplier_id, v_quote_id
+      FROM public.quote_suppliers qs
+      JOIN public.quotes q ON q.id = qs.quote_id
+      WHERE qs.public_token = p_token
+        AND q.status = 'open'
+        AND (q.deadline_at IS NULL OR q.deadline_at > NOW())
+        AND qs.submitted_at IS NULL;
+      
+      IF v_quote_supplier_id IS NULL THEN
+        RETURN FALSE;
+      END IF;
+
+      -- Upsert da resposta
+      INSERT INTO public.quote_responses (
+        quote_id,
+        quote_supplier_id,
+        quote_item_id,
+        price,
+        min_qty,
+        delivery_days,
+        notes,
+        pricing_tiers,
+        filled_at
+      ) VALUES (
+        v_quote_id,
+        v_quote_supplier_id,
+        p_quote_item_id,
+        p_price,
+        p_min_qty,
+        p_delivery_days,
+        p_notes,
+        p_pricing_tiers,
+        NOW()
+      )
+      ON CONFLICT (quote_supplier_id, quote_item_id)
+      DO UPDATE SET
+        price = EXCLUDED.price,
+        min_qty = EXCLUDED.min_qty,
+        delivery_days = EXCLUDED.delivery_days,
+        notes = EXCLUDED.notes,
+        pricing_tiers = EXCLUDED.pricing_tiers,
+        filled_at = NOW();
+
+      -- Atualizar status do quote_supplier para partial se ainda não foi submetido
+      UPDATE public.quote_suppliers
+      SET status = 'partial', last_access_at = NOW()
+      WHERE id = v_quote_supplier_id AND status != 'submitted';
+
+      RETURN TRUE;
+    END;
+    $$;
+  `;
+
+  try {
+    const { error: error7 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration6
+    });
+
+    if (error7) {
+      console.error('❌ Erro na Migration 6:', error7);
+      return false;
+    }
+
+    console.log('✅ Migration 6 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 6:', e);
+    return false;
+  }
+
+  // =========================================================================
+  // MIGRATION 7: Force Cleanup Functions (Drop ALL by name)
+  // =========================================================================
+
+  console.log('📝 Aplicando Migration 7: Force Cleanup Functions...');
+
+  const migration7 = `
+    -- Force drop ALL variations of save_supplier_response to clean up ambiguity
+    DO $$ 
+    DECLARE 
+        r RECORD;
+    BEGIN 
+        -- Iterate over all functions with this name in public schema
+        FOR r IN 
+            SELECT oid::regprocedure AS func_signature 
+            FROM pg_proc 
+            WHERE proname = 'save_supplier_response' 
+            AND pronamespace = 'public'::regnamespace
+        LOOP 
+            RAISE NOTICE 'Dropping function: %', r.func_signature;
+            EXECUTE 'DROP FUNCTION ' || r.func_signature; 
+        END LOOP; 
+    END $$;
+
+    -- Recreate the function with the correct signature
+    CREATE OR REPLACE FUNCTION public.save_supplier_response(p_token text, p_quote_item_id bigint, p_price numeric, p_min_qty numeric DEFAULT NULL::numeric, p_delivery_days integer DEFAULT NULL::integer, p_notes text DEFAULT NULL::text, p_pricing_tiers jsonb DEFAULT NULL::jsonb) RETURNS boolean
+        LANGUAGE plpgsql SECURITY DEFINER
+        SET search_path TO 'public'
+        AS $$
+    DECLARE
+      v_quote_supplier_id BIGINT;
+      v_quote_id BIGINT;
+    BEGIN
+      -- Verificar token e obter IDs
+      SELECT qs.id, qs.quote_id INTO v_quote_supplier_id, v_quote_id
+      FROM public.quote_suppliers qs
+      JOIN public.quotes q ON q.id = qs.quote_id
+      WHERE qs.public_token = p_token
+        AND q.status = 'open'
+        AND (q.deadline_at IS NULL OR q.deadline_at > NOW())
+        AND qs.submitted_at IS NULL;
+      
+      IF v_quote_supplier_id IS NULL THEN
+        RETURN FALSE;
+      END IF;
+
+      -- Upsert da resposta
+      INSERT INTO public.quote_responses (
+        quote_id,
+        quote_supplier_id,
+        quote_item_id,
+        price,
+        min_qty,
+        delivery_days,
+        notes,
+        pricing_tiers,
+        filled_at
+      ) VALUES (
+        v_quote_id,
+        v_quote_supplier_id,
+        p_quote_item_id,
+        p_price,
+        p_min_qty,
+        p_delivery_days,
+        p_notes,
+        p_pricing_tiers,
+        NOW()
+      )
+      ON CONFLICT (quote_supplier_id, quote_item_id)
+      DO UPDATE SET
+        price = EXCLUDED.price,
+        min_qty = EXCLUDED.min_qty,
+        delivery_days = EXCLUDED.delivery_days,
+        notes = EXCLUDED.notes,
+        pricing_tiers = EXCLUDED.pricing_tiers,
+        filled_at = NOW();
+
+      -- Atualizar status do quote_supplier para partial se ainda não foi submetido
+      UPDATE public.quote_suppliers
+      SET status = 'partial', last_access_at = NOW()
+      WHERE id = v_quote_supplier_id AND status != 'submitted';
+
+      RETURN TRUE;
+    END;
+    $$;
+  `;
+
+  try {
+    const { error: error8 } = await supabaseAdmin!.rpc('execute_sql', {
+      query: migration7
+    });
+
+    if (error8) {
+      console.error('❌ Erro na Migration 7:', error8);
+      return false;
+    }
+
+    console.log('✅ Migration 7 aplicada com sucesso!\n');
+  } catch (e) {
+    console.error('❌ Exceção na Migration 7:', e);
+    return false;
+  }
+
+  // =========================================================================
+  // VERIFICAÇÃO FINAL
+  // =========================================================================
+
+  console.log('🔍 Verificando estrutura...\n');
+
+  // Verificar tabelas
+  const { data: tables } = await supabaseAdmin!.rpc('execute_sql', {
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'"
+  });
+
+  console.log(`📊 Total de tabelas: ${tables?.[0]?.count || 'N/A'}`);
+
+  // Verificar campos de winner
+  const { data: winnerFields } = await supabaseAdmin!.rpc('execute_sql', {
+    query: "SELECT column_name FROM information_schema.columns WHERE table_name = 'quote_items' AND column_name LIKE 'winner%'"
+  });
+
+  console.log(`✅ Campos de vencedor: ${winnerFields?.length || 0}/4`);
+
+  // Verificar PO tables
+  const { data: poTables } = await supabaseAdmin!.rpc('execute_sql', {
+    query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'purchase%'"
+  });
+
+  console.log(`✅ Tabelas de PO: ${poTables?.length || 0}/2`);
+
+  console.log('\n' + '='.repeat(60));
+  console.log('🎉 MIGRATIONS APLICADAS COM SUCESSO!');
+  console.log('='.repeat(60));
+  console.log('\n📝 Próximos passos:');
+  console.log('1. Testar seleção de vencedores na interface');
+  console.log('2. Verificar que os dados estão sendo salvos');
+  console.log('3. Implementar UI para Purchase Orders');
+
+  return true;
 }
 
 // Exportar para uso via console

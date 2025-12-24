@@ -249,60 +249,40 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
   };
 
   const handleAutoSelectWinners = async () => {
-    // Auto-select winners based on lowest price for all items without a winner
-    const updates: Promise<any>[] = [];
-
-    for (const item of items) {
-      if (item.winner_supplier_id) continue; // Skip items with existing winner
-
-      const lowestPrice = getLowestPrice(item.id);
-      if (!lowestPrice) continue;
-
-      const lowestResponse = responses.find(
-        r => r.quote_item_id === item.id && r.price === lowestPrice
-      );
-      if (!lowestResponse) continue;
-
-      const lowestSupplier = suppliers.find(s => s.id === lowestResponse.quote_supplier_id);
-      if (!lowestSupplier) continue;
-
-      updates.push(
-        supabase
-          .from("quote_items")
-          .update({
-            winner_supplier_id: lowestSupplier.supplier_id,
-            winner_response_id: lowestResponse.id,
-            winner_reason: "Menor Preço (Automático)",
-            winner_set_at: new Date().toISOString(),
-          })
-          .eq("id", item.id) as any
-      );
-    }
-
-    if (updates.length === 0) {
-      toast({
-        title: "Nenhum item para atualizar",
-        description: "Todos os itens já possuem vencedor ou não há propostas.",
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('auto_select_winners', {
+        p_quote_id: quoteId,
       });
-      return;
-    }
 
-    const results = await Promise.all(updates);
-    const hasError = results.some(r => r.error);
+      if (error) {
+        throw error;
+      }
 
-    if (hasError) {
+      const count = data as number;
+
+      if (count === 0) {
+        toast({
+          title: "Nenhum item atualizado",
+          description: "Todos os itens já possuem vencedor ou não há propostas válidas.",
+        });
+      } else {
+        toast({
+          title: "Vencedores selecionados!",
+          description: `${count} item(s) atualizado(s) com menor preço.`,
+        });
+        fetchData();
+        onWinnerChange?.();
+      }
+    } catch (error: any) {
+      console.error('Error auto-selecting winners:', error);
       toast({
         title: "Erro ao auto-selecionar",
-        description: "Alguns itens não puderam ser atualizados.",
+        description: error.message || "Ocorreu um erro ao processar a solicitação.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Vencedores selecionados!",
-        description: `${updates.length} itens atualizados com menor preço.`
-      });
-      fetchData();
-      onWinnerChange?.();
+    } finally {
+      setLoading(false);
     }
   };
 

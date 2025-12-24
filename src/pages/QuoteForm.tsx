@@ -19,6 +19,7 @@ import {
   XCircle,
   BarChart3,
   ShoppingCart,
+  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,8 @@ import {
 import { QuoteItemsTab } from "@/components/quotes/form/QuoteItemsTab";
 import { QuoteSuppliersTab } from "@/components/quotes/form/QuoteSuppliersTab";
 import { QuoteImportModal } from "@/components/quotes/form/QuoteImportModal";
+import { QuoteItemAdder } from "@/components/quotes/form/QuoteItemAdder";
+
 
 export default function QuoteForm() {
   const { id } = useParams();
@@ -51,22 +54,18 @@ export default function QuoteForm() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [productLists, setProductLists] = useState<ProductList[]>([]);
 
+  const [creatorName, setCreatorName] = useState("");
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     deadline_at: "",
     status: "draft" as "draft" | "open" | "closed" | "cancelled",
+    created_at: "",
   });
 
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [quoteSuppliers, setQuoteSuppliers] = useState<QuoteSupplier[]>([]);
-
-  const [newItem, setNewItem] = useState({
-    product_id: "",
-    package_id: "",
-    requested_qty: "",
-  });
-
 
   const [selectedListId, setSelectedListId] = useState("");
 
@@ -172,7 +171,20 @@ export default function QuoteForm() {
           ? new Date(quote.deadline_at).toISOString().slice(0, 16)
           : "",
         status: quote.status,
+        created_at: quote.created_at || "",
       });
+
+      if (quote.created_by) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", quote.created_by)
+          .single();
+
+        if (profile) {
+          setCreatorName(profile.full_name || "");
+        }
+      }
     }
 
     const { data: quoteItems, error: quoteItemsError } = await supabase
@@ -242,6 +254,8 @@ export default function QuoteForm() {
     setPOSuppliers(Array.from(suppliersMap.values()));
   }, [items, quoteSuppliers]);
 
+
+
   const handleSave = async () => {
     if (!tenantId) return;
     setSaving(true);
@@ -282,7 +296,7 @@ export default function QuoteForm() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Cotação salva" });
+      toast({ title: "Cotação salva", variant: "success" });
       if (!isEditing && quoteId) {
         navigate(`/quotes/${quoteId}`);
       }
@@ -291,17 +305,17 @@ export default function QuoteForm() {
     setSaving(false);
   };
 
-  const handleAddItem = async () => {
-    if (!id || !newItem.product_id) return;
+  const handleAddItem = async (item: { product_id: string; package_id: string; requested_qty: string }) => {
+    if (!id || !item.product_id) return;
     const quoteId = parseInt(id);
 
     // Check for duplicate product
     const isDuplicate = items.some(
-      item => item.product_id === parseInt(newItem.product_id)
+      existingItem => existingItem.product_id === parseInt(item.product_id)
     );
 
     if (isDuplicate) {
-      const productName = products.find(p => p.id === parseInt(newItem.product_id))?.name || 'Produto';
+      const productName = products.find(p => p.id === parseInt(item.product_id))?.name || 'Produto';
       toast({
         title: 'Produto duplicado',
         description: `${productName} já foi adicionado a esta cotação. Remova o item existente antes de adicionar novamente.`,
@@ -312,10 +326,10 @@ export default function QuoteForm() {
 
     const { error } = await supabase.from("quote_items").insert({
       quote_id: quoteId,
-      product_id: parseInt(newItem.product_id),
-      package_id: newItem.package_id ? parseInt(newItem.package_id) : null,
-      requested_qty: newItem.requested_qty
-        ? parseFloat(newItem.requested_qty)
+      product_id: parseInt(item.product_id),
+      package_id: item.package_id ? parseInt(item.package_id) : null,
+      requested_qty: item.requested_qty
+        ? parseFloat(item.requested_qty)
         : null,
       sort_order: items.length,
     });
@@ -327,7 +341,6 @@ export default function QuoteForm() {
         variant: "destructive",
       });
     } else {
-      setNewItem({ product_id: "", package_id: "", requested_qty: "" });
       fetchQuote();
     }
   };
@@ -346,6 +359,33 @@ export default function QuoteForm() {
       });
     } else {
       fetchQuote();
+    }
+  };
+
+  const handleUpdateItem = async (itemId: number, updates: Partial<QuoteItem>) => {
+    // Optimistic update
+    setItems(items.map(item => item.id === itemId ? { ...item, ...updates } : item));
+
+    const { error } = await supabase
+      .from("quote_items")
+      .update(updates)
+      .eq("id", itemId);
+
+    if (error) {
+      toast({
+        title: "Erro ao atualizar item",
+        description: error.message,
+        variant: "destructive",
+      });
+      fetchQuote(); // Revert on error
+    } else {
+      toast({
+        title: "Item atualizado",
+        duration: 1500,
+        variant: "success"
+      });
+      // Optionally refetch or keep optimistic state if simple
+      // fetchQuote(); 
     }
   };
 
@@ -416,7 +456,7 @@ export default function QuoteForm() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Lista importada" });
+      toast({ title: "Lista importada", variant: "success" });
       setSelectedListId("");
       setImportModalOpen(false);
       setImportListItems([]);
@@ -468,6 +508,7 @@ export default function QuoteForm() {
       toast({
         title: "Fornecedores adicionados",
         description: `${newSuppliers.length} fornecedor(es) adicionado(s) com sucesso.`,
+        variant: "success"
       });
       fetchQuote();
     }
@@ -493,7 +534,7 @@ export default function QuoteForm() {
   const copyLink = (token: string) => {
     const link = `${window.location.origin}/supplier/quote/${token}`;
     navigator.clipboard.writeText(link);
-    toast({ title: "Link copiado!" });
+    toast({ title: "Link copiado!", variant: "success" });
   };
 
   const handleStatusChange = (action: "open" | "close" | "cancel") => {
@@ -553,7 +594,8 @@ export default function QuoteForm() {
       if (confirmAction === "close") {
         toast({
           title: "Cotação encerrada!",
-          description: "Snapshot e histórico de preços foram salvos."
+          description: "Snapshot e histórico de preços foram salvos.",
+          variant: "success"
         });
       } else if (confirmAction === "open") {
         try {
@@ -595,13 +637,14 @@ export default function QuoteForm() {
             if (emailCount > 0) {
               toast({
                 title: "Status atualizado e e-mails enviados",
-                description: `${emailCount} fornecedores foram notificados.`
+                description: `${emailCount} fornecedores foram notificados.`,
+                variant: "success"
               });
             } else {
-              toast({ title: "Status atualizado" });
+              toast({ title: "Status atualizado", variant: "success" });
             }
           } else {
-            toast({ title: "Status atualizado" });
+            toast({ title: "Status atualizado", variant: "success" });
           }
         } catch (mailErr) {
           console.error("Error sending emails:", mailErr);
@@ -611,7 +654,7 @@ export default function QuoteForm() {
           });
         }
       } else {
-        toast({ title: "Status atualizado" });
+        toast({ title: "Status atualizado", variant: "success" });
       }
       fetchQuote();
     }
@@ -671,6 +714,15 @@ export default function QuoteForm() {
                 Encerrar
               </Button>
             )}
+            {isEditing && formData.status === "closed" && (
+              <Button
+                variant="default"
+                onClick={() => handleStatusChange("open")}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reabrir Cotação
+              </Button>
+            )}
           </div>
         }
       />
@@ -719,71 +771,81 @@ export default function QuoteForm() {
 
           <TabsContent value="data" className="space-y-6 mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Informações da Cotação</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Título</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) =>
-                        setFormData({ ...formData, title: e.target.value })
-                      }
-                      placeholder="Título da cotação"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="deadline">Prazo</Label>
-                    <Input
-                      id="deadline"
-                      type="datetime-local"
-                      value={formData.deadline_at}
-                      onChange={(e) =>
-                        setFormData({ ...formData, deadline_at: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="p-3 flex-grow w-full md:w-auto">
+                  <Label htmlFor="title">Título da Cotação</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
                     onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
+                      setFormData({ ...formData, title: e.target.value })
                     }
-                    placeholder="Descrição (opcional)"
-                    rows={3}
+                    placeholder="Título da cotação"
+                    required
                   />
                 </div>
-              </CardContent>
+
+                {isEditing && (
+                  <>
+                    <div className="p-3 w-full md:w-auto min-w-[140px]">
+                      <Label>Data de Criação</Label>
+                      <div className="h-10 flex items-center px-3 border rounded-md bg-muted text-sm text-muted-foreground whitespace-nowrap">
+                        {formData.created_at ? new Date(formData.created_at).toLocaleDateString() : "-"}
+                      </div>
+                    </div>
+
+                    <div className="p-3 w-full md:w-auto min-w-[140px]">
+                      <Label>Quem Criou</Label>
+                      <div className="h-10 flex items-center px-3 border rounded-md bg-muted text-sm text-muted-foreground whitespace-nowrap">
+                        {creatorName || "Sistema"}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="p-3 w-full md:w-[220px]">
+                  <Label htmlFor="deadline">Prazo da Cotação</Label>
+                  <Input
+                    id="deadline"
+                    type="datetime-local"
+                    value={formData.deadline_at}
+                    onChange={(e) =>
+                      setFormData({ ...formData, deadline_at: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
             </Card>
 
             {isEditing && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Itens da Cotação</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <QuoteItemsTab
-                    items={items}
+              <>
+                <div className="mb-4">
+                  <QuoteItemAdder
                     products={products}
-                    isEditing={isEditing}
-                    newItem={newItem}
-                    setNewItem={setNewItem}
                     onAddItem={handleAddItem}
-                    onRemoveItem={handleRemoveItem}
-                    onImportList={() => setImportModalOpen(true)}
                     loading={saving}
                   />
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Itens da Cotação</CardTitle>
+                    </div>
+                  </CardHeader> */}
+                {/* <CardContent> */}
+                <QuoteItemsTab
+                  items={items}
+                  products={products}
+                  isEditing={isEditing}
+                  onRemoveItem={handleRemoveItem}
+                  onUpdateItem={handleUpdateItem}
+                  onImportList={() => setImportModalOpen(true)}
+                  loading={saving}
+                />
+                {/* </CardContent> */}
+
+              </>
             )}
           </TabsContent>
 
@@ -801,6 +863,7 @@ export default function QuoteForm() {
                     onRemoveSupplier={handleRemoveSupplier}
                     onCopyLink={copyLink}
                     loading={saving}
+                    quoteStatus={formData.status}
                   />
                 </CardContent>
               </Card>

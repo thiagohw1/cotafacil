@@ -213,7 +213,7 @@ export default function SupplierQuote() {
       });
     } else {
       setLastSaved(new Date());
-      toast({ title: "Salvo com sucesso" });
+      toast({ title: "Salvo com sucesso", variant: "success" });
     }
     setSaving(false);
   };
@@ -235,7 +235,7 @@ export default function SupplierQuote() {
         variant: "destructive",
       });
     } else {
-      toast({ title: "Cotação enviada com sucesso!" });
+      toast({ title: "Cotação enviada com sucesso!", variant: "success" });
       fetchQuoteData();
     }
     setSubmitting(false);
