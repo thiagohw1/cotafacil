@@ -20,6 +20,7 @@ import {
   BarChart3,
   ShoppingCart,
   RotateCcw,
+  MoreVertical,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,12 @@ import { useTenant } from "@/hooks/useTenant";
 import { GeneratePOModal } from "@/components/quotes/GeneratePOModal";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { mailService } from "@/services/mailService";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   QuoteItem,
   Product,
@@ -679,82 +686,83 @@ export default function QuoteForm() {
     <div className="min-h-screen">
       <Header
         title={isEditing ? "Editar Cotação" : "Nova Cotação"}
-        description={isEditing ? formData.title : "Preencha os dados da cotação"}
+        description={isEditing && formData.status !== 'draft' ?
+          <div className="flex items-center gap-2 mt-1">
+            <StatusBadge status={formData.status as any} />
+            <span className="text-muted-foreground">•</span>
+            <span>{formData.title}</span>
+          </div>
+          : (isEditing ? formData.title : "Preencha os dados da cotação")
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => navigate("/quotes")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving} size="icon">
               {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4" />
               )}
-              Salvar
             </Button>
+
             {isEditing && formData.status === "draft" && (
               <Button
                 variant="default"
                 className="bg-success hover:bg-success/90"
+                size="icon"
                 onClick={() => handleStatusChange("open")}
+                title="Abrir Cotação"
               >
-                <Send className="h-4 w-4 mr-2" />
-                Abrir Cotação
+                <Send className="h-4 w-4" />
               </Button>
             )}
-            {isEditing && formData.status === "open" && (
-              <Button
-                variant="default"
-                className="bg-warning hover:bg-warning/90"
-                onClick={() => handleStatusChange("close")}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Encerrar
-              </Button>
-            )}
-            {isEditing && formData.status === "closed" && (
-              <Button
-                variant="default"
-                onClick={() => handleStatusChange("open")}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reabrir Cotação
-              </Button>
+
+            {isEditing && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {formData.status === "open" && (
+                    <DropdownMenuItem onClick={() => handleStatusChange("close")}>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Encerrar Cotação
+                    </DropdownMenuItem>
+                  )}
+                  {formData.status === "closed" && (
+                    <>
+                      <DropdownMenuItem onClick={() => handleStatusChange("open")}>
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Reabrir Cotação
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setPOModalOpen(true)}>
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Gerar Purchase Orders
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {formData.status !== "cancelled" && formData.status !== "draft" && (
+                    <DropdownMenuItem
+                      onClick={() => handleStatusChange("cancel")}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancelar Cotação
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         }
       />
 
       <div className="p-6 space-y-6 animate-fade-in">
-        {isEditing && (
-          <div className="flex items-center gap-2">
-            <StatusBadge status={formData.status as any} />
-            {formData.status === "closed" && (
-              <Button
-                variant="default"
-                className="bg-success hover:bg-success/90"
-                onClick={() => setPOModalOpen(true)}
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Gerar Purchase Orders
-              </Button>
-            )}
-            {formData.status !== "cancelled" && formData.status !== "draft" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                onClick={() => handleStatusChange("cancel")}
-              >
-                <XCircle className="h-4 w-4 mr-1" />
-                Cancelar Cotação
-              </Button>
-            )}
-          </div>
-        )}
-
         <Tabs defaultValue="data">
           <TabsList>
             <TabsTrigger value="data">Detalhes</TabsTrigger>
@@ -771,8 +779,8 @@ export default function QuoteForm() {
 
           <TabsContent value="data" className="space-y-6 mt-6">
             <Card>
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="p-3 flex-grow w-full md:w-auto">
+              <div className="grid grid-cols-12 gap-6 p-6">
+                <div className="col-span-12 md:col-span-5 space-y-2">
                   <Label htmlFor="title">Título da Cotação</Label>
                   <Input
                     id="title"
@@ -787,23 +795,23 @@ export default function QuoteForm() {
 
                 {isEditing && (
                   <>
-                    <div className="p-3 w-full md:w-auto min-w-[140px]">
+                    <div className="col-span-6 md:col-span-2 space-y-2">
                       <Label>Data de Criação</Label>
-                      <div className="h-10 flex items-center px-3 border rounded-md bg-muted text-sm text-muted-foreground whitespace-nowrap">
+                      <div className="h-10 flex items-center px-3 border rounded-md bg-muted text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
                         {formData.created_at ? new Date(formData.created_at).toLocaleDateString() : "-"}
                       </div>
                     </div>
 
-                    <div className="p-3 w-full md:w-auto min-w-[140px]">
+                    <div className="col-span-6 md:col-span-2 space-y-2">
                       <Label>Quem Criou</Label>
-                      <div className="h-10 flex items-center px-3 border rounded-md bg-muted text-sm text-muted-foreground whitespace-nowrap">
+                      <div className="h-10 flex items-center px-3 border rounded-md bg-muted text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
                         {creatorName || "Sistema"}
                       </div>
                     </div>
                   </>
                 )}
 
-                <div className="p-3 w-full md:w-[220px]">
+                <div className="col-span-12 md:col-span-3 space-y-2">
                   <Label htmlFor="deadline">Prazo da Cotação</Label>
                   <Input
                     id="deadline"

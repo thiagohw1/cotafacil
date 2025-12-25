@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
+
 
 interface HeaderProps {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
 }
 
@@ -13,7 +13,7 @@ export function Header({ title, description, actions }: HeaderProps) {
       <div>
         <h1 className="text-xl font-semibold">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <div className="text-sm text-muted-foreground">{description}</div>
         )}
       </div>
 
