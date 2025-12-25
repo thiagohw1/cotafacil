@@ -5,10 +5,12 @@ import { Loader2, Menu } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 export function AppLayout() {
   const { user, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (loading) {
     return (
@@ -24,7 +26,10 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
       {/* Mobile Header */}
       <div className="md:hidden flex items-center h-16 px-4 border-b bg-background border-border sticky top-0 z-50">
@@ -43,7 +48,7 @@ export function AppLayout() {
         <span className="ml-2 text-lg font-semibold">CotaFácil</span>
       </div>
 
-      <main className="md:pl-64">
+      <main className={cn("transition-all duration-300 md:pl-64", sidebarCollapsed && "md:pl-20")}>
         <Outlet />
       </main>
     </div>

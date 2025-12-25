@@ -233,6 +233,7 @@ export default function Quotes() {
         tenant_id: tenantId,
         title: `${quote.title} (Cópia)`,
         status: "draft",
+        created_by: user?.id,
       })
       .select()
       .single();

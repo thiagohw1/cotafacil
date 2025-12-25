@@ -19,6 +19,9 @@ import {
   Sun,
   Moon,
   Laptop,
+  ChevronLeft,
+  ChevronRight,
+  Menu
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
@@ -46,6 +49,12 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider
+} from "@/components/ui/tooltip";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -64,9 +73,11 @@ const navigation = [
 
 interface SidebarContentProps {
   onLinkClick?: () => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export function SidebarContent({ onLinkClick }: SidebarContentProps) {
+export function SidebarContent({ onLinkClick, collapsed = false, onToggle }: SidebarContentProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -94,59 +105,102 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
     }
   };
 
+  const NavItem = ({ item, isActive }: { item: typeof navigation[0], isActive: boolean }) => (
+    <Link
+      to={item.href}
+      onClick={onLinkClick}
+      className={cn(
+        "nav-link flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+        isActive
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+        collapsed && "justify-center px-2"
+      )}
+    >
+      <item.icon className="w-5 h-5 shrink-0" />
+      {!collapsed && <span>{item.name}</span>}
+    </Link>
+  );
+
   return (
-    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
+    <div className={cn("flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300", collapsed ? "w-20" : "w-64")}>
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-        <Link to="/dashboard" className="flex items-center gap-3" onClick={onLinkClick}>
-          <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <FileText className="w-5 h-5 text-sidebar-primary-foreground" />
-          </div>
-          <span className="text-lg font-semibold text-sidebar-foreground">
-            CotaFácil
-          </span>
+      <div className={cn("h-16 flex items-center border-b border-sidebar-border relative", collapsed ? "justify-center px-2 gap-1" : "px-6 justify-between")}>
+        <Link to="/dashboard" className="flex items-center gap-2 overflow-hidden" onClick={onLinkClick}>
+          {collapsed ? (
+            <img src="/logo.png" alt="CotaFácil" className="h-8 w-8 object-contain" />
+          ) : (
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="CotaFácil" className="h-8 w-8 object-contain" />
+              <span className="text-xl font-bold tracking-tight">
+                <span className="text-[#003366] dark:text-blue-400">Cota</span><span className="text-[#4CAF50]">Fácil</span>
+              </span>
+            </div>
+          )}
         </Link>
+
+        {onToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-6 w-6 text-muted-foreground hover:text-foreground",
+              collapsed ? "static" : "absolute right-2"
+            )}
+            onClick={onToggle}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
         {navigation
           .filter(item => item.name !== "Permissões" || profile?.role === "admin")
           .map((item) => {
             const isActive = location.pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                onClick={onLinkClick}
-                className={cn("nav-link", isActive && "active")}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.name}
-              </Link>
+            return collapsed ? (
+              <TooltipProvider key={item.name} delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <NavItem item={item} isActive={isActive} />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                    {item.name}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <NavItem key={item.name} item={item} isActive={isActive} />
             );
           })}
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-sidebar-border mt-auto flex items-center gap-2">
+      <div className={cn("p-3 border-t border-sidebar-border mt-auto flex items-center gap-2", collapsed && "flex-col")}>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex-1 justify-start h-auto py-3 px-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-              <div className="flex items-center gap-3 text-left">
+            <Button variant="ghost" className={cn("flex-1 justify-start h-auto py-3 px-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", collapsed && "justify-center px-0 w-full")}>
+              <div className={cn("flex items-center gap-3 text-left", collapsed && "gap-0 justify-center")}>
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary/10 text-primary">
                     {profile?.full_name?.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <span className="text-sm font-medium truncate">
-                    {profile?.full_name || "Usuário"}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {user?.email}
-                  </span>
-                </div>
+                {!collapsed && (
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <span className="text-sm font-medium truncate">
+                      {profile?.full_name || "Usuário"}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {user?.email}
+                    </span>
+                  </div>
+                )}
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -165,6 +219,7 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
               <span>Configurações</span>
             </DropdownMenuItem>
             <DropdownMenuSub>
+              {/* Theme Submenu content remains same */}
               <DropdownMenuSubTrigger>
                 <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -266,10 +321,15 @@ export function SidebarContent({ onLinkClick }: SidebarContentProps) {
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
-    <div className="hidden md:flex w-64 flex-col fixed inset-y-0">
-      <SidebarContent />
+    <div className={cn("hidden md:flex flex-col fixed inset-y-0 transition-all duration-300 z-50 border-r border-sidebar-border bg-sidebar", collapsed ? "w-20" : "w-64")}>
+      <SidebarContent collapsed={collapsed} onToggle={onToggle} />
     </div>
   );
 }

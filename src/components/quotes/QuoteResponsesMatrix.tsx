@@ -855,14 +855,36 @@ export function QuoteResponsesMatrix({ quoteId, quoteStatus, onWinnerChange }: P
               </tbody>
             </table>
           </div>
-          <div className="p-4 border-t flex justify-end gap-6 text-xs text-muted-foreground bg-muted/10">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-emerald-100 dark:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-sm"></span>
-              <span>Vencedor</span>
+          <div className="p-4 border-t flex justify-between gap-6 text-xs text-muted-foreground bg-muted/10">
+            <div className="flex items-center gap-4">
+              <span className="font-medium mr-2">Status:</span>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span>Respondido</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                <span>Em Andamento</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                <span>Visualizado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                <span>Pendente</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-blue-50 dark:bg-blue-900/50 border border-blue-100 dark:border-blue-800 rounded-sm"></span>
-              <span>Menor Preço</span>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-emerald-100 dark:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-sm"></span>
+                <span>Vencedor</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 bg-blue-50 dark:bg-blue-900/50 border border-blue-100 dark:border-blue-800 rounded-sm"></span>
+                <span>Menor Preço</span>
+              </div>
             </div>
           </div>
         </CardContent>
