@@ -39,6 +39,9 @@ interface Quote {
   created_at: string;
   created_by: string;
   creator_name?: string;
+  items_count?: number;
+  suppliers_invited_count?: number;
+  suppliers_responded_count?: number;
 }
 
 interface QuoteSummary {
@@ -57,6 +60,7 @@ export default function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -83,25 +87,36 @@ export default function Quotes() {
     onNew: () => setCreateModalOpen(true),
   });
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     if (tenantId) {
       fetchQuotes();
     }
-  }, [tenantId, search, statusFilter, page]);
+  }, [tenantId, debouncedSearch, statusFilter, page]);
 
   const fetchQuotes = async () => {
     if (!tenantId) return;
     setLoading(true);
 
+    // Use the view to get statistics
     let query = supabase
-      .from("quotes")
+      .from("quotes_list_view" as any)
       .select("*", { count: "exact" })
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     if (search) {
-      query = query.ilike("title", `%${search}%`);
+      // Search across title, products, and suppliers using the aggregated columns from the view
+      query = query.or(`title.ilike.%${search}%,product_names.ilike.%${search}%,supplier_names.ilike.%${search}%`);
     }
 
     if (statusFilter && statusFilter !== "all") {
@@ -300,10 +315,54 @@ export default function Quotes() {
   };
 
   const columns: Column<Quote>[] = [
-    { key: "title", header: "Título" },
+
+    {
+      key: "title",
+      header: "Título",
+      render: (item) => {
+        const dateStr = format(new Date(item.created_at), "ddMMyyyy");
+        const quoteCode = `CO-${dateStr}-${item.id}`;
+
+        return (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">{quoteCode}</span>
+            <span className="text-xs text-muted-foreground">{item.title}</span>
+          </div>
+        );
+      }
+    },
+    {
+      key: "items_count",
+      header: "Produtos",
+      className: "w-[100px] text-center",
+      render: (item) => (
+        <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+          <Package className="h-4 w-4" />
+          <span className="text-sm font-medium">{item.items_count || 0}</span>
+        </div>
+      )
+    },
+    {
+      key: "suppliers_invited_count",
+      header: "Fornecedores",
+      className: "w-[140px] text-center",
+      render: (item) => {
+        const invited = item.suppliers_invited_count || 0;
+        const responded = item.suppliers_responded_count || 0;
+        return (
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex flex-col items-end leading-none">
+              <span className="text-sm font-semibold">{responded}<span className="text-muted-foreground font-normal">/{invited}</span></span>
+              <span className="text-[10px] text-muted-foreground uppercase">Resp.</span>
+            </div>
+          </div>
+        )
+      }
+    },
     {
       key: "creator",
       header: "Comprador",
+      className: "hidden md:table-cell",
       render: (item) => (
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
@@ -392,8 +451,8 @@ export default function Quotes() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Buscar cotações..."
-            className="w-80"
+            placeholder="Buscar por título, produtos ou fornecedores..."
+            className="w-96"
           />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40">

@@ -278,151 +278,181 @@ export default function SupplierQuote() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                <FileText className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold">CotaFácil</h1>
-                <p className="text-sm text-muted-foreground">
-                  Portal do Fornecedor
-                </p>
-              </div>
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Modern Sticky Header */}
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+              <FileText className="h-5 w-5" />
             </div>
-            <div className="text-right">
-              <p className="font-medium">{quoteData.supplier_name}</p>
+            <div>
+              <h1 className="font-bold text-lg leading-none tracking-tight">CotaFácil</h1>
+              <p className="text-xs text-muted-foreground font-medium">Portal do Fornecedor</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium leading-none">{quoteData.supplier_name}</p>
+              <p className="text-xs text-muted-foreground mt-1">Fornecedor Convidado</p>
+            </div>
+            <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center sm:hidden">
+              <span className="text-xs font-medium">{quoteData.supplier_name?.charAt(0)}</span>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl sm:text-2xl">{quoteData.quote_title}</CardTitle>
-                {quoteData.quote_description && (
-                  <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                    {quoteData.quote_description}
-                  </p>
-                )}
-              </div>
-              <StatusBadge status={quoteData.quote_status as any} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-4 sm:gap-6 text-sm">
-              {quoteData.quote_deadline && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    Prazo:{" "}
-                    {format(new Date(quoteData.quote_deadline), "dd/MM/yyyy HH:mm", {
-                      locale: ptBR,
-                    })}
-                  </span>
-                  {isExpired && (
-                    <span className="text-destructive font-medium">
-                      (Expirado)
-                    </span>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* Quote Info Card - Clean & Modern */}
+        <div className="grid gap-6 md:grid-cols-[2fr,1fr]">
+          <Card className="shadow-sm border-none ring-1 ring-border">
+            <CardHeader className="pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-2xl font-bold tracking-tight">{quoteData.quote_title}</CardTitle>
+                    <StatusBadge status={quoteData.quote_status as any} />
+                  </div>
+                  {quoteData.quote_description && (
+                    <p className="text-muted-foreground text-sm leading-relaxed max-w-2xl">
+                      {quoteData.quote_description}
+                    </p>
                   )}
                 </div>
-              )}
-              {isSubmitted && (
-                <div className="flex items-center gap-2 text-success">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>
-                    Enviado em{" "}
-                    {format(
-                      new Date(quoteData.submitted_at!),
-                      "dd/MM/yyyy HH:mm",
-                      { locale: ptBR }
-                    )}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto pt-2 sm:pt-0 border-t sm:border-t-0 mt-2 sm:mt-0">
-                <Label htmlFor="delivery-days" className="whitespace-nowrap">Prazo de entrega (dias):</Label>
-                <Input
-                  id="delivery-days"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={deliveryDays}
-                  onChange={(e) => setDeliveryDays(e.target.value)}
-                  disabled={isDisabled}
-                  className="w-24"
-                />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-6 text-sm">
+                <div className="flex items-center gap-2 p-2 bg-muted/40 rounded-md border border-transparent">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground">Prazo para Envio</span>
+                    <span className="font-medium">
+                      {quoteData.quote_deadline
+                        ? format(new Date(quoteData.quote_deadline), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                        : "Sem prazo definido"
+                      }
+                    </span>
+                  </div>
+                </div>
 
-        {isDisabled && (
-          <Card className="border-warning/50 bg-warning/5">
-            <CardContent className="p-4">
-              <p className="text-warning font-medium">
-                {isExpired
-                  ? "O prazo para envio desta cotação expirou."
-                  : "Esta cotação foi encerrada e não aceita mais respostas."}
-              </p>
+                {isSubmitted && (
+                  <div className="flex items-center gap-2 p-2 bg-green-50 text-green-700 rounded-md border border-green-100">
+                    <CheckCircle className="h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-semibold text-green-600">Status do Envio</span>
+                      <span className="font-medium">
+                        Enviado em {format(new Date(quoteData.submitted_at!), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
+
+          <Card className="shadow-sm border-none ring-1 ring-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-medium">Condições Gerais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-days" className="text-xs uppercase text-muted-foreground font-semibold">
+                    Prazo de Entrega (em dias)
+                  </Label>
+                  <Input
+                    id="delivery-days"
+                    type="number"
+                    min="0"
+                    placeholder="Ex: 5"
+                    value={deliveryDays}
+                    onChange={(e) => setDeliveryDays(e.target.value)}
+                    disabled={isDisabled}
+                    className="bg-muted/30"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {isDisabled && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3 text-amber-800">
+            <Clock className="h-5 w-5 flex-shrink-0" />
+            <p className="font-medium text-sm">
+              {isExpired
+                ? "O prazo para envio desta cotação expirou. Não é mais possível enviar propostas."
+                : "Esta cotação foi encerrada e não aceita mais respostas."}
+            </p>
+          </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Itens para Cotação</CardTitle>
+        <Card className="shadow-sm border-none ring-1 ring-border overflow-hidden">
+          <CardHeader className="bg-muted/30 border-b py-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Tags className="h-4 w-4 text-muted-foreground" />
+                Itens da Cotação
+              </CardTitle>
+              <div className="text-xs text-muted-foreground font-medium bg-background px-3 py-1 rounded-full border">
+                {items.length} {items.length === 1 ? 'item' : 'itens'} listados
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="p-0 sm:p-6">
+
+          <CardContent className="p-0">
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-2 font-medium">Produto</th>
-                    <th className="text-left py-3 px-2 font-medium">Emb.</th>
-                    <th className="text-left py-3 px-2 font-medium">Qtde Sol.</th>
-                    <th className="text-left py-3 px-2 font-medium">Preço Emb.</th>
-                    <th className="text-left py-3 px-2 font-medium">Preço Unit.</th>
-                    <th className="text-left py-3 px-2 font-medium w-24">Condições</th>
-                    <th className="text-left py-3 px-2 font-medium w-12">Obs</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[30%] font-semibold">Produto</TableHead>
+                    <TableHead className="w-[10%] font-semibold">Embalagem</TableHead>
+                    <TableHead className="w-[10%] font-semibold text-center">Qtd. Sol.</TableHead>
+                    <TableHead className="w-[20%] font-semibold">Preço Emb.</TableHead>
+                    <TableHead className="w-[20%] font-semibold">Preço Unit.</TableHead>
+                    <TableHead className="w-[5%] text-center">Cond.</TableHead>
+                    <TableHead className="w-[5%] text-center">Obs</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {items.map((item) => {
                     const multiplier = item.package?.multiplier || 1;
                     const packagePrice = responses[item.id]?.price || "";
                     const unitPrice = packagePrice ? (parseFloat(packagePrice) / multiplier).toFixed(2) : "";
+                    const hasTiers = responses[item.id]?.pricing_tiers?.length > 0;
+                    const hasNotes = !!responses[item.id]?.notes;
 
                     return (
-                      <tr key={item.id} className="border-b">
-                        <td className="py-3 px-2 font-medium">
+                      <TableRow key={item.id} className="hover:bg-muted/10 transition-colors">
+                        <TableCell className="font-medium text-foreground py-4">
                           {item.product.name}
-                        </td>
-                        <td className="py-3 px-2">
-                          {item.package
-                            ? `${item.package.unit}${item.package.multiplier > 1 ? `-${item.package.multiplier}` : ""}`
-                            : "Unidade"}
-                        </td>
-                        <td className="py-3 px-2">{item.requested_qty || "-"}</td>
-                        <td className="py-3 px-2">
+                        </TableCell>
+                        <TableCell>
+                          {item.package ? (
+                            <div className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                              {item.package.unit}
+                              {item.package.multiplier > 1 && `-${item.package.multiplier}`}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-mono text-sm bg-muted/50 px-2 py-1 rounded">{item.requested_qty || "-"}</span>
+                        </TableCell>
+                        <TableCell>
                           <CurrencyInput
                             value={packagePrice}
-                            onChange={(value) =>
-                              updateResponse(item.id, "price", value)
-                            }
+                            onChange={(value) => updateResponse(item.id, "price", value)}
                             disabled={isDisabled}
-                            className="w-32"
+                            className="bg-background border-input focus:ring-2 focus:ring-primary/20 w-36 transition-all"
                             placeholder="0,00"
                           />
-                        </td>
-                        <td className="py-3 px-2">
+                        </TableCell>
+                        <TableCell>
                           <CurrencyInput
                             value={unitPrice}
                             onChange={(value) => {
@@ -434,89 +464,96 @@ export default function SupplierQuote() {
                               updateResponse(item.id, "price", newPackagePrice);
                             }}
                             disabled={isDisabled}
-                            className="w-32"
+                            className="bg-muted/20 text-muted-foreground w-36"
                             placeholder="0,00"
                           />
-                        </td>
-                        <td className="py-3 px-2">
+                        </TableCell>
+                        <TableCell className="text-center">
                           <Button
-                            variant="ghost"
-                            size="sm"
+                            variant={hasTiers ? "secondary" : "ghost"}
+                            size="icon"
                             onClick={() => {
                               setSelectedItemId(item.id);
                               setTierModalOpen(true);
                             }}
                             disabled={isDisabled}
-                            className={responses[item.id]?.pricing_tiers?.length > 0 ? "text-primary" : "text-muted-foreground"}
+                            className={`h-9 w-9 rounded-full ${hasTiers ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-muted-foreground"}`}
                             title="Condições de Preço"
                           >
-                            <Tags className="h-4 w-4 mr-1" />
-                            {responses[item.id]?.pricing_tiers?.length > 0 ? "Sim" : "Não"}
+                            <Tags className="h-4 w-4" />
                           </Button>
-                        </td>
-                        <td className="py-3 px-2">
+                        </TableCell>
+                        <TableCell className="text-center">
                           <Button
-                            variant="ghost"
+                            variant={hasNotes ? "secondary" : "ghost"}
                             size="icon"
                             onClick={() => openNotesModal(item.id)}
                             disabled={isDisabled}
-                            className={responses[item.id]?.notes ? "text-primary" : "text-muted-foreground"}
+                            className={`h-9 w-9 rounded-full ${hasNotes ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200" : "text-muted-foreground"}`}
                           >
                             <MessageSquare className="h-4 w-4" />
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-4 p-4">
+            {/* Mobile Modern Card View */}
+            <div className="md:hidden divide-y divide-border">
               {items.map((item) => {
                 const multiplier = item.package?.multiplier || 1;
                 const packagePrice = responses[item.id]?.price || "";
                 const unitPrice = packagePrice ? (parseFloat(packagePrice) / multiplier).toFixed(2) : "";
+                const hasTiers = responses[item.id]?.pricing_tiers?.length > 0;
+                const hasNotes = !!responses[item.id]?.notes;
 
                 return (
-                  <div key={item.id} className="bg-card border rounded-lg p-4 space-y-4 shadow-sm">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-lg">{item.product.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {item.package
-                            ? `${item.package.unit}${item.package.multiplier > 1 ? `-${item.package.multiplier}` : ""}`
-                            : "Unidade"}{" "}
-                          • Solic: {item.requested_qty || "-"}
-                        </p>
+                  <div key={item.id} className="p-4 space-y-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-base leading-tight">{item.product.name}</h3>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {item.package ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 font-medium">
+                              {item.package.unit}
+                              {item.package.multiplier > 1 && ` x${item.package.multiplier}`}
+                            </span>
+                          ) : (
+                            <span>Unidade</span>
+                          )}
+                          <span>•</span>
+                          <span>Qtd: {item.requested_qty || "-"}</span>
+                        </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openNotesModal(item.id)}
-                        disabled={isDisabled}
-                        className={responses[item.id]?.notes ? "text-primary" : "text-muted-foreground"}
-                      >
-                        <MessageSquare className="h-5 w-5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openNotesModal(item.id)}
+                          disabled={isDisabled}
+                          className={`h-8 w-8 ${hasNotes ? "text-yellow-600 bg-yellow-50" : "text-muted-foreground"}`}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase">Preço Emb.</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Preço Embalagem</label>
                         <CurrencyInput
                           value={packagePrice}
-                          onChange={(value) =>
-                            updateResponse(item.id, "price", value)
-                          }
+                          onChange={(value) => updateResponse(item.id, "price", value)}
                           disabled={isDisabled}
-                          className="h-10 text-lg"
+                          className="h-10 border-input"
                           placeholder="0,00"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase">Preço Unit.</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Preço Unitário</label>
                         <CurrencyInput
                           value={unitPrice}
                           onChange={(value) => {
@@ -528,7 +565,7 @@ export default function SupplierQuote() {
                             updateResponse(item.id, "price", newPackagePrice);
                           }}
                           disabled={isDisabled}
-                          className="h-10 text-lg"
+                          className="h-10 bg-muted/20"
                           placeholder="0,00"
                         />
                       </div>
@@ -536,17 +573,16 @@ export default function SupplierQuote() {
 
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => {
                         setSelectedItemId(item.id);
                         setTierModalOpen(true);
                       }}
                       disabled={isDisabled}
-                      className={`w-full ${responses[item.id]?.pricing_tiers?.length > 0 ? "border-primary text-primary" : "text-muted-foreground"}`}
+                      className={`w-full text-xs h-9 ${hasTiers ? "border-primary text-primary bg-primary/5" : "text-muted-foreground"}`}
                     >
-                      <Tags className="h-4 w-4 mr-2" />
-                      {responses[item.id]?.pricing_tiers?.length > 0
-                        ? `${responses[item.id]?.pricing_tiers.length} condições definidas`
-                        : "Adicionar Condições de Preço"}
+                      <Tags className="h-3 w-3 mr-2" />
+                      {hasTiers ? `${responses[item.id]?.pricing_tiers.length} condições ativas` : "Adicionar Condições Especiais"}
                     </Button>
                   </div>
                 );
@@ -556,33 +592,37 @@ export default function SupplierQuote() {
         </Card>
 
         {!isDisabled && (
-          <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 border-t sm:border-t-0 sm:p-0 sm:bg-transparent sm:static z-10 -mx-4 sm:mx-0 shadow-md sm:shadow-none">
-            <div className="text-sm text-muted-foreground hidden sm:block">
-              {lastSaved && (
-                <span>
-                  Último salvamento:{" "}
-                  {format(lastSaved, "HH:mm:ss", { locale: ptBR })}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Button variant="outline" onClick={handleSave} disabled={saving} className="flex-1 sm:flex-none">
-                {saving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t z-50">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+              <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+                {lastSaved ? (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    Salvo às {format(lastSaved, "HH:mm:ss", { locale: ptBR })}
+                  </>
                 ) : (
-                  <Save className="h-4 w-4 mr-2" />
+                  "Alterações não salvas"
                 )}
-                <span className="sm:hidden">Salvar</span>
-                <span className="hidden sm:inline">Salvar Rascunho</span>
-              </Button>
-              <Button onClick={handleSubmit} disabled={submitting} className="flex-1 sm:flex-none">
-                {submitting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                {isSubmitted ? "Atualizar Preços" : "Enviar"}
-              </Button>
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 sm:flex-none border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors"
+                >
+                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Salvar Rascunho
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-1 sm:flex-none bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-0.5"
+                >
+                  {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {isSubmitted ? "Atualizar Proposta" : "Enviar Proposta Final"}
+                </Button>
+              </div>
             </div>
           </div>
         )}

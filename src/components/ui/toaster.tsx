@@ -14,7 +14,7 @@ export function Toaster() {
           <Toast key={id} variant={variant} {...props}>
             <div className="flex gap-4 w-full items-start">
               <div className="mt-1">
-                {variant === 'success' && <CheckCircle className="h-6 w-6 text-green-500" />}
+                {variant === 'success' && <CheckCircle className="h-6 w-6 text-white" />}
                 {variant === 'destructive' && <XCircle className="h-6 w-6 text-red-500" />}
                 {variant === 'warning' && <AlertCircle className="h-6 w-6 text-yellow-500" />}
                 {(!variant || variant === 'default') && <Info className="h-6 w-6 text-blue-500" />}
@@ -24,7 +24,7 @@ export function Toaster() {
                 <div className="flex justify-between items-start">
                   {title && <ToastTitle className="text-base font-semibold">{title}</ToastTitle>}
                   {timestamp && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 opacity-70">
+                    <span className={`text-xs flex items-center gap-1 ${variant === 'success' ? 'text-white/90' : 'text-muted-foreground opacity-70'}`}>
                       <Clock className="h-3 w-3" />
                       {format(new Date(timestamp), "HH:mm", { locale: ptBR })}
                     </span>

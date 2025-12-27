@@ -20,7 +20,6 @@ import {
   BarChart3,
   ShoppingCart,
   RotateCcw,
-  MoreVertical,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -28,12 +27,6 @@ import { useTenant } from "@/hooks/useTenant";
 import { GeneratePOModal } from "@/components/quotes/GeneratePOModal";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { mailService } from "@/services/mailService";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   QuoteItem,
   Product,
@@ -720,43 +713,46 @@ export default function QuoteForm() {
               </Button>
             )}
 
-            {isEditing && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {formData.status === "open" && (
-                    <DropdownMenuItem onClick={() => handleStatusChange("close")}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Encerrar Cotação
-                    </DropdownMenuItem>
-                  )}
-                  {formData.status === "closed" && (
-                    <>
-                      <DropdownMenuItem onClick={() => handleStatusChange("open")}>
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Reabrir Cotação
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setPOModalOpen(true)}>
-                        <ShoppingCart className="h-4 w-4 mr-2" />
-                        Gerar Purchase Orders
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {formData.status !== "cancelled" && formData.status !== "draft" && (
-                    <DropdownMenuItem
-                      onClick={() => handleStatusChange("cancel")}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Cancelar Cotação
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {isEditing && formData.status === "open" && (
+              <Button
+                onClick={() => handleStatusChange("close")}
+                className="gap-2 bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Encerrar Cotação
+              </Button>
+            )}
+
+            {isEditing && formData.status === "closed" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleStatusChange("open")}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reabrir Cotação
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPOModalOpen(true)}
+                  className="gap-2"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Gerar Purchase Orders
+                </Button>
+              </>
+            )}
+
+            {isEditing && formData.status !== "cancelled" && formData.status !== "draft" && (
+              <Button
+                variant="destructive"
+                onClick={() => handleStatusChange("cancel")}
+                className="gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Cancelar Cotação
+              </Button>
             )}
           </div>
         }
