@@ -689,37 +689,38 @@ export default function QuoteForm() {
         }
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/quotes")}>
+            <Button variant="outline" onClick={() => navigate("/quotes")} className="h-8">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
-            <Button onClick={handleSave} disabled={saving} size="icon">
+            <Button onClick={handleSave} disabled={saving} className="h-8 gap-2 px-3">
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Save className="h-4 w-4" />
               )}
+              Salvar
             </Button>
 
             {isEditing && formData.status === "draft" && (
               <Button
                 variant="default"
-                className="bg-success hover:bg-success/90"
-                size="icon"
+                className="bg-success hover:bg-success/90 h-8 gap-2 px-3"
                 onClick={() => handleStatusChange("open")}
                 title="Abrir Cotação"
               >
                 <Send className="h-4 w-4" />
+                Abrir Cotação
               </Button>
             )}
 
             {isEditing && formData.status === "open" && (
               <Button
                 onClick={() => handleStatusChange("close")}
-                className="gap-2 bg-yellow-600 hover:bg-yellow-700 text-white"
+                className="gap-2 bg-yellow-600 hover:bg-yellow-700 text-white h-8"
               >
                 <CheckCircle className="h-4 w-4" />
-                Encerrar Cotação
+                Encerrar
               </Button>
             )}
 
@@ -728,18 +729,18 @@ export default function QuoteForm() {
                 <Button
                   variant="outline"
                   onClick={() => handleStatusChange("open")}
-                  className="gap-2"
+                  className="gap-2 h-8"
                 >
                   <RotateCcw className="h-4 w-4" />
-                  Reabrir Cotação
+                  Reabrir
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setPOModalOpen(true)}
-                  className="gap-2"
+                  className="gap-2 h-8"
                 >
                   <ShoppingCart className="h-4 w-4" />
-                  Gerar Purchase Orders
+                  Gerar Pedido
                 </Button>
               </>
             )}
@@ -748,10 +749,10 @@ export default function QuoteForm() {
               <Button
                 variant="destructive"
                 onClick={() => handleStatusChange("cancel")}
-                className="gap-2"
+                className="gap-2 h-8"
               >
                 <XCircle className="h-4 w-4" />
-                Cancelar Cotação
+                Cancelar
               </Button>
             )}
           </div>
