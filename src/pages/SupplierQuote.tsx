@@ -388,121 +388,169 @@ export default function SupplierQuote() {
                     <th className="text-left py-3 px-2 font-medium">Produto</th>
                     <th className="text-left py-3 px-2 font-medium">Emb.</th>
                     <th className="text-left py-3 px-2 font-medium">Qtde Sol.</th>
-                    <th className="text-left py-3 px-2 font-medium">Preço</th>
+                    <th className="text-left py-3 px-2 font-medium">Preço Emb.</th>
+                    <th className="text-left py-3 px-2 font-medium">Preço Unit.</th>
                     <th className="text-left py-3 px-2 font-medium w-24">Condições</th>
                     <th className="text-left py-3 px-2 font-medium w-12">Obs</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-3 px-2 font-medium">
-                        {item.product.name}
-                      </td>
-                      <td className="py-3 px-2">
-                        {item.package
-                          ? `${item.package.unit}${item.package.multiplier > 1 ? `-${item.package.multiplier}` : ""}`
-                          : "-"}
-                      </td>
-                      <td className="py-3 px-2">{item.requested_qty || "-"}</td>
-                      <td className="py-3 px-2">
-                        <CurrencyInput
-                          value={responses[item.id]?.price || ""}
-                          onChange={(value) =>
-                            updateResponse(item.id, "price", value)
-                          }
-                          disabled={isDisabled}
-                          className="w-32"
-                        />
-                      </td>
-                      <td className="py-3 px-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedItemId(item.id);
-                            setTierModalOpen(true);
-                          }}
-                          disabled={isDisabled}
-                          className={responses[item.id]?.pricing_tiers?.length > 0 ? "text-primary" : "text-muted-foreground"}
-                          title="Condições de Preço"
-                        >
-                          <Tags className="h-4 w-4 mr-1" />
-                          {responses[item.id]?.pricing_tiers?.length > 0 ? "Sim" : "Não"}
-                        </Button>
-                      </td>
-                      <td className="py-3 px-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openNotesModal(item.id)}
-                          disabled={isDisabled}
-                          className={responses[item.id]?.notes ? "text-primary" : "text-muted-foreground"}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((item) => {
+                    const multiplier = item.package?.multiplier || 1;
+                    const packagePrice = responses[item.id]?.price || "";
+                    const unitPrice = packagePrice ? (parseFloat(packagePrice) / multiplier).toFixed(2) : "";
+
+                    return (
+                      <tr key={item.id} className="border-b">
+                        <td className="py-3 px-2 font-medium">
+                          {item.product.name}
+                        </td>
+                        <td className="py-3 px-2">
+                          {item.package
+                            ? `${item.package.unit}${item.package.multiplier > 1 ? `-${item.package.multiplier}` : ""}`
+                            : "Unidade"}
+                        </td>
+                        <td className="py-3 px-2">{item.requested_qty || "-"}</td>
+                        <td className="py-3 px-2">
+                          <CurrencyInput
+                            value={packagePrice}
+                            onChange={(value) =>
+                              updateResponse(item.id, "price", value)
+                            }
+                            disabled={isDisabled}
+                            className="w-32"
+                            placeholder="0,00"
+                          />
+                        </td>
+                        <td className="py-3 px-2">
+                          <CurrencyInput
+                            value={unitPrice}
+                            onChange={(value) => {
+                              if (!value) {
+                                updateResponse(item.id, "price", "");
+                                return;
+                              }
+                              const newPackagePrice = (parseFloat(value) * multiplier).toFixed(2);
+                              updateResponse(item.id, "price", newPackagePrice);
+                            }}
+                            disabled={isDisabled}
+                            className="w-32"
+                            placeholder="0,00"
+                          />
+                        </td>
+                        <td className="py-3 px-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedItemId(item.id);
+                              setTierModalOpen(true);
+                            }}
+                            disabled={isDisabled}
+                            className={responses[item.id]?.pricing_tiers?.length > 0 ? "text-primary" : "text-muted-foreground"}
+                            title="Condições de Preço"
+                          >
+                            <Tags className="h-4 w-4 mr-1" />
+                            {responses[item.id]?.pricing_tiers?.length > 0 ? "Sim" : "Não"}
+                          </Button>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openNotesModal(item.id)}
+                            disabled={isDisabled}
+                            className={responses[item.id]?.notes ? "text-primary" : "text-muted-foreground"}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4 p-4">
-              {items.map((item) => (
-                <div key={item.id} className="bg-card border rounded-lg p-4 space-y-4 shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-lg">{item.product.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {item.package
-                          ? `${item.package.unit}${item.package.multiplier > 1 ? `-${item.package.multiplier}` : ""}`
-                          : "Unidade"}{" "}
-                        • Solic: {item.requested_qty || "-"}
-                      </p>
+              {items.map((item) => {
+                const multiplier = item.package?.multiplier || 1;
+                const packagePrice = responses[item.id]?.price || "";
+                const unitPrice = packagePrice ? (parseFloat(packagePrice) / multiplier).toFixed(2) : "";
+
+                return (
+                  <div key={item.id} className="bg-card border rounded-lg p-4 space-y-4 shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold text-lg">{item.product.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {item.package
+                            ? `${item.package.unit}${item.package.multiplier > 1 ? `-${item.package.multiplier}` : ""}`
+                            : "Unidade"}{" "}
+                          • Solic: {item.requested_qty || "-"}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openNotesModal(item.id)}
+                        disabled={isDisabled}
+                        className={responses[item.id]?.notes ? "text-primary" : "text-muted-foreground"}
+                      >
+                        <MessageSquare className="h-5 w-5" />
+                      </Button>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase">Preço Emb.</label>
+                        <CurrencyInput
+                          value={packagePrice}
+                          onChange={(value) =>
+                            updateResponse(item.id, "price", value)
+                          }
+                          disabled={isDisabled}
+                          className="h-10 text-lg"
+                          placeholder="0,00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase">Preço Unit.</label>
+                        <CurrencyInput
+                          value={unitPrice}
+                          onChange={(value) => {
+                            if (!value) {
+                              updateResponse(item.id, "price", "");
+                              return;
+                            }
+                            const newPackagePrice = (parseFloat(value) * multiplier).toFixed(2);
+                            updateResponse(item.id, "price", newPackagePrice);
+                          }}
+                          disabled={isDisabled}
+                          className="h-10 text-lg"
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
+
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openNotesModal(item.id)}
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedItemId(item.id);
+                        setTierModalOpen(true);
+                      }}
                       disabled={isDisabled}
-                      className={responses[item.id]?.notes ? "text-primary" : "text-muted-foreground"}
+                      className={`w-full ${responses[item.id]?.pricing_tiers?.length > 0 ? "border-primary text-primary" : "text-muted-foreground"}`}
                     >
-                      <MessageSquare className="h-5 w-5" />
+                      <Tags className="h-4 w-4 mr-2" />
+                      {responses[item.id]?.pricing_tiers?.length > 0
+                        ? `${responses[item.id]?.pricing_tiers.length} condições definidas`
+                        : "Adicionar Condições de Preço"}
                     </Button>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground uppercase">Preço Unit.</label>
-                      <CurrencyInput
-                        value={responses[item.id]?.price || ""}
-                        onChange={(value) =>
-                          updateResponse(item.id, "price", value)
-                        }
-                        disabled={isDisabled}
-                        className="h-10 text-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedItemId(item.id);
-                      setTierModalOpen(true);
-                    }}
-                    disabled={isDisabled}
-                    className={`w-full ${responses[item.id]?.pricing_tiers?.length > 0 ? "border-primary text-primary" : "text-muted-foreground"}`}
-                  >
-                    <Tags className="h-4 w-4 mr-2" />
-                    {responses[item.id]?.pricing_tiers?.length > 0
-                      ? `${responses[item.id]?.pricing_tiers.length} condições definidas`
-                      : "Adicionar Condições de Preço"}
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
