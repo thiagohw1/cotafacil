@@ -81,73 +81,71 @@ export default function SupplierQuote() {
     if (!token) return;
     setLoading(true);
 
-    const { data: quoteInfo, error: quoteError } = await supabase
-      .rpc("get_quote_by_token", { p_token: token });
+    try {
+      const { data, error } = await supabase.rpc("get_public_quote_data", { p_token: token });
 
-    if (quoteError || !quoteInfo || quoteInfo.length === 0) {
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error("Cotação não encontrada");
+      }
+
+      // The new RPC returns a JSON object with all the data
+      // We need to cast it to our types or map it
+      const result = data as any;
+
+      const quoteInfo = result.quote;
+      const supplierData = result.supplier;
+      const quoteItems = result.items;
+      const existingResponses = result.responses;
+
+      setQuoteData({
+        ...quoteInfo,
+        supplier_name: supplierData?.name || "Fornecedor",
+      });
+
+      // Map items to match QuoteItem interface
+      // The RPC returns items with product name and package info nested
+      const mappedItems: QuoteItem[] = quoteItems.map((item: any) => ({
+        id: item.id,
+        product: item.product,
+        package: item.package,
+        requested_qty: item.requested_qty
+      }));
+
+      setItems(mappedItems);
+
+      const responsesMap: Record<number, QuoteResponse> = {};
+      let existingDeliveryDays = "";
+
+      if (existingResponses && Array.isArray(existingResponses)) {
+        existingResponses.forEach((r: any) => {
+          responsesMap[r.quote_item_id] = {
+            quote_item_id: r.quote_item_id,
+            price: r.price?.toString() || "",
+            notes: r.notes || "",
+            pricing_tiers: Array.isArray(r.pricing_tiers) ? r.pricing_tiers : [],
+          };
+          if (!existingDeliveryDays && r.delivery_days) {
+            existingDeliveryDays = r.delivery_days.toString();
+          }
+        });
+      }
+
+      setResponses(responsesMap);
+      setDeliveryDays(existingDeliveryDays);
+    } catch (error: any) {
+      console.error("Error fetching quote:", error);
       toast({
         title: "Cotação não encontrada",
         description: "O link pode estar incorreto ou expirado.",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const info = quoteInfo[0];
-
-    const { data: supplierData } = await supabase
-      .from("suppliers")
-      .select("name")
-      .eq("id", info.supplier_id)
-      .single();
-
-    await supabase.rpc("update_supplier_access", { p_token: token });
-
-    setQuoteData({
-      ...info,
-      supplier_name: supplierData?.name || "Fornecedor",
-    });
-
-    const { data: quoteItems } = await supabase
-      .from("quote_items")
-      .select(`
-        id,
-        requested_qty,
-        product:products(name),
-        package:product_packages(unit, multiplier)
-      `)
-      .eq("quote_id", info.quote_id)
-      .order("sort_order");
-
-    setItems((quoteItems as any) || []);
-
-    const { data: existingResponses } = await supabase
-      .from("quote_responses")
-      .select("*")
-      .eq("quote_supplier_id", info.quote_supplier_id);
-
-    const responsesMap: Record<number, QuoteResponse> = {};
-    let existingDeliveryDays = "";
-
-    if (existingResponses) {
-      existingResponses.forEach((r) => {
-        responsesMap[r.quote_item_id] = {
-          quote_item_id: r.quote_item_id,
-          price: r.price?.toString() || "",
-          notes: r.notes || "",
-          pricing_tiers: Array.isArray(r.pricing_tiers) ? r.pricing_tiers : [],
-        };
-        if (!existingDeliveryDays && r.delivery_days) {
-          existingDeliveryDays = r.delivery_days.toString();
-        }
-      });
-    }
-
-    setResponses(responsesMap);
-    setDeliveryDays(existingDeliveryDays);
-
-    setLoading(false);
   };
 
   const updateResponse = (itemId: number, field: string, value: string) => {

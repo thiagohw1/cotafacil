@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "./table";
 import { Button } from "./button";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Column<T> {
@@ -15,6 +15,7 @@ export interface Column<T> {
   header: string;
   render?: (item: T) => React.ReactNode;
   className?: string;
+  sortable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -28,6 +29,9 @@ interface DataTableProps<T> {
   onPageChange?: (page: number) => void;
   onRowClick?: (item: T) => void;
   getRowKey?: (item: T) => string | number;
+  onSort?: (column: string) => void;
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -41,6 +45,9 @@ export function DataTable<T extends Record<string, any>>({
   onPageChange,
   onRowClick,
   getRowKey = (item) => item.id,
+  onSort,
+  sortColumn,
+  sortDirection,
 }: DataTableProps<T>) {
   const totalPages = Math.ceil(totalCount / pageSize);
   const showPagination = totalCount > pageSize;
@@ -61,7 +68,26 @@ export function DataTable<T extends Record<string, any>>({
             <TableRow className="hover:bg-transparent">
               {columns.map((column) => (
                 <TableHead key={column.key} className={column.className}>
-                  {column.header}
+                  {column.sortable && onSort ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => onSort(column.key)}
+                      className="-ml-4 h-8 data-[state=open]:bg-accent"
+                    >
+                      <span>{column.header}</span>
+                      {sortColumn === column.key ? (
+                        sortDirection === "desc" ? (
+                          <ArrowDown className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ArrowUp className="ml-2 h-4 w-4" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      )}
+                    </Button>
+                  ) : (
+                    column.header
+                  )}
                 </TableHead>
               ))}
             </TableRow>

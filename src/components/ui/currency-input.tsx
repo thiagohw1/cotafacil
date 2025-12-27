@@ -9,22 +9,23 @@ interface CurrencyInputProps {
     className?: string;
 }
 
-export function CurrencyInput({ value, onChange, disabled, placeholder = "R$ 0,00", className }: CurrencyInputProps) {
+export function CurrencyInput({ value, onChange, disabled, placeholder = "0,00", className }: CurrencyInputProps) {
     const [displayValue, setDisplayValue] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
 
     useEffect(() => {
-        // Format the value for display
-        if (value) {
+        // Only update display value from prop if not focused to avoid interrupting typing
+        if (!isFocused && value) {
             const numValue = parseFloat(value.replace(',', '.'));
             if (!isNaN(numValue)) {
                 setDisplayValue(formatCurrency(numValue));
             } else {
                 setDisplayValue('');
             }
-        } else {
+        } else if (!value && !isFocused) {
             setDisplayValue('');
         }
-    }, [value]);
+    }, [value, isFocused]);
 
     const formatCurrency = (num: number): string => {
         return num.toLocaleString('pt-BR', {
@@ -36,21 +37,24 @@ export function CurrencyInput({ value, onChange, disabled, placeholder = "R$ 0,0
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let inputValue = e.target.value;
 
-        // Remove all non-numeric characters except comma and dot
+        // Allow digits and one comma
         inputValue = inputValue.replace(/[^\d,]/g, '');
 
-        // Replace comma with dot for parsing
-        const numericValue = inputValue.replace(',', '.');
+        // Ensure only one comma
+        const parts = inputValue.split(',');
+        if (parts.length > 2) {
+            inputValue = parts[0] + ',' + parts.slice(1).join('');
+        }
 
-        // Update display
         setDisplayValue(inputValue);
 
-        // Send the numeric value to parent
+        // Send normalized value to parent (with dot)
+        const numericValue = inputValue.replace(',', '.');
         onChange(numericValue);
     };
 
     const handleBlur = () => {
-        // Format on blur
+        setIsFocused(false);
         if (displayValue) {
             const numValue = parseFloat(displayValue.replace(',', '.'));
             if (!isNaN(numValue)) {
@@ -60,17 +64,21 @@ export function CurrencyInput({ value, onChange, disabled, placeholder = "R$ 0,0
     };
 
     const handleFocus = () => {
-        // Remove formatting on focus for easier editing
+        setIsFocused(true);
+        // On focus, passing the raw value is usually better, but keeping what user typed is fine too.
+        // If it was formatted (e.g. 1.000,00), we might want to strip thousands separators if we had them.
+        // Current formatCurrency uses locale which might add thousands dots.
+        // Let's strip dots for editing.
         if (displayValue) {
-            const cleaned = displayValue.replace(/\./g, '');
-            setDisplayValue(cleaned);
+            // Remove dots (thousands separators) but keep comma
+            const rawValue = displayValue.replace(/\./g, '');
+            setDisplayValue(rawValue);
         }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // Find the next input element
             const form = e.currentTarget.form;
             if (form) {
                 const inputs = Array.from(form.querySelectorAll('input:not([disabled])'));
