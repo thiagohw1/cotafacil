@@ -251,23 +251,45 @@ export default function ProductLists() {
   const fetchProducts = async (term: string) => {
     if (!tenantId) return;
 
+    // Smart category search logic
+    const isCategorySearch = term.trim().startsWith("//");
+
     let query = supabase
       .from("products")
-      .select("id, name, product_packages(id, unit, multiplier, is_default)")
+      .select("id, name, product_packages(id, unit, multiplier, is_default), category:categories!inner(name)")
       .eq("tenant_id", tenantId)
       .eq("active", true)
       .is("deleted_at", null)
       .order("name")
       .limit(50);
 
-    if (term) {
+    if (isCategorySearch) {
+      const categoryTerm = term.trim().substring(2).toLowerCase();
+
+      // Define aliases
+      const aliases: Record<string, string[]> = {
+        "flv": ["frutas", "legumes", "verduras", "hortifruti", "flv"],
+        "carnes": ["carnes", "bovinos", "suínos", "aves", "açougue", "suinos", "acougue"],
+      };
+
+      if (aliases[categoryTerm]) {
+        // Use 'in' filter for multiple categories (requires a slightly different query approach or multiple 'or')
+        // Supabase postgrest doesn't support .in on joined columns easily in one go without 'filter'
+        // But we can use the text search syntax or 'or' on the foreign table if mapped correctly.
+        // Easiest is to use !inner join and filter on the joined column.
+        query = query.in("category.name", aliases[categoryTerm]);
+      } else {
+        // Direct search on category name (partial)
+        query = query.ilike("category.name", `%${categoryTerm}%`);
+      }
+    } else if (term) {
       query = query.ilike("name", `%${term}%`);
     }
 
     const { data } = await query;
 
     setProducts(
-      data?.map((p) => ({
+      data?.map((p: any) => ({
         id: p.id,
         name: p.name,
         packages: p.product_packages || [],
