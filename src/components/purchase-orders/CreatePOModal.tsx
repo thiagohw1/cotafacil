@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,12 +12,11 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Popover,
+    PopoverContent,
+    PopoverTrigger
+} from '@/components/ui/popover';
+import { cn } from "@/lib/utils";
 import { Loader2 } from 'lucide-react';
 import { createPurchaseOrder } from '@/lib/purchase-order-helpers';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +33,14 @@ export function CreatePOModal({ open, onOpenChange, onSuccess }: CreatePOModalPr
     const [loading, setLoading] = useState(false);
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+
+    // Search state
+    const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedTerm, setDebouncedTerm] = useState("");
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const listRef = useRef<HTMLDivElement>(null);
+
     const { toast } = useToast();
     const navigate = useNavigate();
 
@@ -42,6 +49,65 @@ export function CreatePOModal({ open, onOpenChange, onSuccess }: CreatePOModalPr
         notes: '',
         expected_delivery_date: '',
     });
+
+    // Debounce search term
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedTerm(searchTerm);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    const filteredSuppliers = suppliers.filter(s => {
+        if (!debouncedTerm) return false;
+        return (
+            s.name.toLowerCase().includes(debouncedTerm.toLowerCase()) ||
+            s.email?.toLowerCase().includes(debouncedTerm.toLowerCase())
+        );
+    });
+
+    const handleSelectSupplier = (supplier: any) => {
+        setFormData({ ...formData, supplier_id: supplier.id.toString() });
+        setSearchTerm(supplier.name);
+        setSearchOpen(false);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setSelectedIndex((prev) => (prev + 1) % filteredSuppliers.length);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setSelectedIndex((prev) => (prev - 1 + filteredSuppliers.length) % filteredSuppliers.length);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (filteredSuppliers.length > 0) {
+                handleSelectSupplier(filteredSuppliers[selectedIndex]);
+            }
+        } else if (e.key === "Escape") {
+            setSearchOpen(false);
+        }
+    };
+
+    // Auto-scroll logic
+    useEffect(() => {
+        if (selectedIndex >= 0 && listRef.current) {
+            const list = listRef.current;
+            const item = list.children[selectedIndex] as HTMLElement;
+            if (item) {
+                const listTop = list.scrollTop;
+                const listBottom = listTop + list.clientHeight;
+                const itemTop = item.offsetTop;
+                const itemBottom = itemTop + item.clientHeight;
+
+                if (itemTop < listTop) {
+                    list.scrollTop = itemTop;
+                } else if (itemBottom > listBottom) {
+                    list.scrollTop = itemBottom - list.clientHeight;
+                }
+            }
+        }
+    }, [selectedIndex]);
 
     // Carregar fornecedores quando o modal abre
     const handleOpenChange = (newOpen: boolean) => {
@@ -59,18 +125,12 @@ export function CreatePOModal({ open, onOpenChange, onSuccess }: CreatePOModalPr
 
     const loadSuppliers = async () => {
         setLoadingSuppliers(true);
-        console.log('🔍 [CARREGANDO] Iniciando query...');
 
         try {
             const { data, error } = await supabase
                 .from('suppliers')
-                .select('*');
-
-            console.log('📊 [RESULTADO]', {
-                count: data?.length,
-                fornecedores: data?.map(s => s.name),
-                erro: error
-            });
+                .select('*')
+                .order('name'); // ensure ordered
 
             if (error) {
                 console.error('❌ [ERRO]', error);
@@ -81,14 +141,7 @@ export function CreatePOModal({ open, onOpenChange, onSuccess }: CreatePOModalPr
                 });
                 setSuppliers([]);
             } else {
-                console.log('✅ [SUCESSO] Fornecedores:', data);
                 setSuppliers(data || []);
-
-                if (data && data.length > 0) {
-                    toast({
-                        title: `✅ ${data.length} fornecedor(es) carregado(s)`,
-                    });
-                }
             }
         } catch (err: any) {
             console.error('❌ [EXCEÇÃO]', err);
@@ -158,49 +211,77 @@ export function CreatePOModal({ open, onOpenChange, onSuccess }: CreatePOModalPr
                 <div className="space-y-4 py-4">
                     {/* Fornecedor */}
                     <div className="space-y-2">
-                        <Label htmlFor="supplier">Fornecedor *</Label>
+                        <Label htmlFor="supplier-search">Fornecedor *</Label>
                         {loadingSuppliers ? (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Carregando fornecedores...
                             </div>
                         ) : (
-                            <>
-                                <Select
-                                    value={formData.supplier_id}
-                                    onValueChange={(value) => setFormData({ ...formData, supplier_id: value })}
+                            <Popover open={searchOpen && filteredSuppliers.length > 0}>
+                                <PopoverTrigger asChild>
+                                    <div className="relative">
+                                        <Input
+                                            id="supplier-search"
+                                            value={searchTerm}
+                                            onChange={(e) => {
+                                                setSearchTerm(e.target.value);
+                                                setSearchOpen(true);
+                                                setSelectedIndex(0);
+                                                // Clear ID if typing implies change
+                                                if (formData.supplier_id && e.target.value !== suppliers.find(s => s.id.toString() === formData.supplier_id)?.name) {
+                                                    setFormData(prev => ({ ...prev, supplier_id: '' }));
+                                                }
+                                            }}
+                                            onKeyDown={handleKeyDown}
+                                            onFocus={() => setSearchOpen(true)}
+                                            onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+                                            placeholder="Buscar fornecedor por nome ou email..."
+                                            className="w-full"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    className="p-0 w-[450px]"
+                                    align="start"
+                                    onOpenAutoFocus={(e) => e.preventDefault()}
                                 >
-                                    <SelectTrigger id="supplier">
-                                        <SelectValue placeholder="Selecione um fornecedor..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {suppliers.length === 0 ? (
-                                            <div className="p-2 text-sm text-muted-foreground text-center">
-                                                Nenhum fornecedor encontrado
-                                            </div>
-                                        ) : (
-                                            suppliers.map((supplier) => (
-                                                <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                                                    {supplier.name}
+                                    <div
+                                        ref={listRef}
+                                        className="max-h-[300px] overflow-y-auto modern-scrollbar p-1"
+                                    >
+                                        {filteredSuppliers.map((supplier, index) => (
+                                            <div
+                                                key={supplier.id}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-2 cursor-pointer text-sm rounded-sm transition-colors",
+                                                    selectedIndex === index ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                                                )}
+                                                onClick={() => handleSelectSupplier(supplier)}
+                                                onMouseEnter={() => setSelectedIndex(index)}
+                                            >
+                                                <div className="flex items-center gap-2 overflow-hidden w-full">
+                                                    <span className="text-xs text-muted-foreground shrink-0 font-mono bg-muted/50 px-1 rounded">
+                                                        {supplier.id}
+                                                    </span>
+                                                    <div className="flex flex-col flex-1 overflow-hidden">
+                                                        <span className="font-medium truncate">
+                                                            {supplier.name}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground truncate">
+                                                            {supplier.email}
+                                                        </span>
+                                                    </div>
                                                     {supplier.deleted_at && (
                                                         <span className="text-xs text-red-500 ml-2">(Excluído)</span>
                                                     )}
-                                                </SelectItem>
-                                            ))
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                                {suppliers.length === 0 && (
-                                    <p className="text-xs text-amber-600 mt-1">
-                                        ⚠️ Nenhum fornecedor encontrado. Verifique o console do navegador (F12) para mais detalhes.
-                                    </p>
-                                )}
-                                {suppliers.length > 0 && (
-                                    <p className="text-xs text-green-600 mt-1">
-                                        ✓ {suppliers.length} fornecedor(es) disponível(is)
-                                    </p>
-                                )}
-                            </>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         )}
                     </div>
 

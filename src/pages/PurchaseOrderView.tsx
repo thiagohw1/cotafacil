@@ -28,7 +28,10 @@ import {
     Ban,
     Edit,
     Trash,
-    Mail
+    Mail,
+    DollarSign,
+    Info,
+    ArrowUpRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -80,7 +83,7 @@ export default function PurchaseOrderView() {
                 title: 'Item removido!',
                 description: 'O item foi removido e os totais foram recalculados',
             });
-            refetch();
+            refetch(false);
         }
     };
 
@@ -124,70 +127,108 @@ export default function PurchaseOrderView() {
     return (
         <div className="container mx-auto p-6 max-w-5xl">
             {/* Header */}
-            <div className="mb-6">
-                <Button
-                    variant="ghost"
-                    className="mb-4"
-                    onClick={() => navigate('/purchase-orders')}
-                >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Voltar para Lista
-                </Button>
-
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">{purchaseOrder.po_number}</h1>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                Criado em {format(new Date(purchaseOrder.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                            </div>
-                        </div>
-                    </div>
-                    <POStatusBadge status={purchaseOrder.status} className="text-sm px-3 py-1" />
-                </div>
-            </div>
-
-            {/* Informações Principais */}
+            {/* Header Unificado & Compacto */}
             <Card className="mb-6">
-                <CardHeader>
-                    <CardTitle>Informações do Pedido</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-semibold">Fornecedor</span>
-                        </div>
-                        <p className="text-lg">{purchaseOrder.supplier?.name || `Fornecedor #${purchaseOrder.supplier_id} `}</p>
-                        {purchaseOrder.supplier?.email && (
-                            <p className="text-sm text-muted-foreground">{purchaseOrder.supplier.email}</p>
-                        )}
-                    </div>
-
-                    {purchaseOrder.quote && (
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-5 w-5 text-muted-foreground" />
-                                <span className="font-semibold">Cotação Original</span>
+                <CardHeader className="pb-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => navigate('/purchase-orders')}
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                                <h1 className="text-2xl font-bold tracking-tight">{purchaseOrder.po_number}</h1>
+                                <POStatusBadge status={purchaseOrder.status} />
                             </div>
-                            <p className="text-lg">{purchaseOrder.quote.title}</p>
                         </div>
-                    )}
+                        {/* Total Value Highlight - Top Right */}
+                        <div className="flex flex-col items-end">
+                            <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Valor Total</span>
+                            <span className="text-3xl font-bold text-primary">
+                                {formatCurrency(purchaseOrder.total_amount)}
+                            </span>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="pb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-2">
+                        {/* Col 1: Fornecedor */}
+                        <div className="flex flex-col space-y-2 border-l-4 border-primary/20 pl-3">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                                <Building2 className="h-3 w-3" /> Fornecedor
+                            </span>
+                            <div>
+                                <p className="font-semibold text-base leading-tight">
+                                    {purchaseOrder.supplier?.name || `Fornecedor #${purchaseOrder.supplier_id}`}
+                                </p>
+                                {purchaseOrder.supplier?.email && (
+                                    <a href={`mailto:${purchaseOrder.supplier.email}`} className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mt-1">
+                                        <Mail className="h-3 w-3" /> {purchaseOrder.supplier.email}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
 
-                    {purchaseOrder.expected_delivery_date && (
-                        <div>
-                            <span className="text-sm font-semibold text-muted-foreground">Data de Entrega Esperada</span>
-                            <p className="text-lg">{format(new Date(purchaseOrder.expected_delivery_date), 'dd/MM/yyyy')}</p>
+                        {/* Col 2: Datas */}
+                        <div className="flex flex-col space-y-2 border-l-4 border-primary/20 pl-3">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                                <Calendar className="h-3 w-3" /> Datas
+                            </span>
+                            <div className="space-y-1">
+                                <p className="text-sm">
+                                    <span className="text-muted-foreground">Emissão: </span>
+                                    <span className="font-medium">{format(new Date(purchaseOrder.created_at), "dd/MM/yyyy")}</span>
+                                </p>
+                                {purchaseOrder.expected_delivery_date && (
+                                    <p className="text-sm">
+                                        <span className="text-muted-foreground">Entrega: </span>
+                                        <span className="font-medium">{format(new Date(purchaseOrder.expected_delivery_date), 'dd/MM/yyyy')}</span>
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                    )}
 
-                    {purchaseOrder.notes && (
-                        <div className="md:col-span-2">
-                            <span className="text-sm font-semibold text-muted-foreground">Observações</span>
-                            <p className="mt-1">{purchaseOrder.notes}</p>
+                        {/* Col 3: Referência / Cotação */}
+                        <div className="flex flex-col space-y-2 border-l-4 border-primary/20 pl-3">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                                <FileText className="h-3 w-3" /> Referência
+                            </span>
+                            <div className="space-y-2">
+                                {purchaseOrder.quote ? (
+                                    <div className="group flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => navigate(`/quotes/${purchaseOrder.quote_id}`)}>
+                                        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary" />
+                                        {purchaseOrder.quote.title}
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground italic">Sem cotação vinculada</span>
+                                )}
+                                {purchaseOrder.notes && (
+                                    <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md italic border">
+                                        "{purchaseOrder.notes}"
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    )}
+
+                        {/* Col 4: Ações Rápidas (Compact) */}
+                        <div className="flex flex-col space-y-2 border-l-4 border-primary/20 pl-3 md:col-span-1">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                                <Info className="h-3 w-3" /> Status
+                            </span>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-sm text-muted-foreground">
+                                    Itens: <span className="font-medium text-foreground">{purchaseOrder.items.length}</span>
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                    Impostos: <span className="font-medium text-foreground">{formatCurrency(purchaseOrder.tax_amount)}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -198,7 +239,7 @@ export default function PurchaseOrderView() {
                         poId={purchaseOrder.id}
                         existingItems={purchaseOrder.items}
                         onSuccess={() => {
-                            refetch();
+                            refetch(false);
                             toast({
                                 title: 'Totais atualizados',
                                 description: 'Os totais do PO foram recalculados automaticamente',
@@ -363,7 +404,7 @@ export default function PurchaseOrderView() {
                 onOpenChange={setEditModalOpen}
                 onSuccess={() => {
                     setEditModalOpen(false);
-                    refetch();
+                    refetch(false);
                     toast({
                         title: 'Totais atualizados',
                         description: 'O PO foi recalculado com os novos valores',

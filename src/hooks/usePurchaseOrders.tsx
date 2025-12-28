@@ -104,9 +104,9 @@ export function usePurchaseOrder(id: number) {
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const fetchPurchaseOrder = async () => {
+    const fetchPurchaseOrder = async (showLoading = true) => {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             setError(null);
 
             // Buscar PO com itens
@@ -164,7 +164,7 @@ export function usePurchaseOrder(id: number) {
                 variant: 'destructive',
             });
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 

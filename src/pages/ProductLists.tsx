@@ -68,11 +68,18 @@ interface Product {
   packages: { id: number; unit: string; multiplier: number; is_default: boolean }[];
 }
 
+interface Category {
+  id: number;
+  name: string;
+  parent_id: number | null;
+}
+
 export default function ProductLists() {
   const { tenantId } = useTenant();
   const { toast } = useToast();
   const [lists, setLists] = useState<ProductList[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -107,6 +114,7 @@ export default function ProductLists() {
   useEffect(() => {
     if (tenantId) {
       fetchLists();
+      fetchCategories();
     }
   }, [tenantId, search, page]);
 
@@ -122,7 +130,7 @@ export default function ProductLists() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, tenantId]);
+  }, [searchTerm, tenantId, categories]);
 
   // Auto-select default package when product changes
   useEffect(() => {
@@ -248,6 +256,15 @@ export default function ProductLists() {
     setLoading(false);
   };
 
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("id, name, parent_id")
+      .order("name");
+
+    setCategories(data || []);
+  };
+
   const fetchProducts = async (term: string) => {
     if (!tenantId) return;
 
@@ -272,15 +289,30 @@ export default function ProductLists() {
         "carnes": ["carnes", "bovinos", "suínos", "aves", "açougue", "suinos", "acougue"],
       };
 
-      if (aliases[categoryTerm]) {
-        // Use 'in' filter for multiple categories (requires a slightly different query approach or multiple 'or')
-        // Supabase postgrest doesn't support .in on joined columns easily in one go without 'filter'
-        // But we can use the text search syntax or 'or' on the foreign table if mapped correctly.
-        // Easiest is to use !inner join and filter on the joined column.
-        query = query.in("category.name", aliases[categoryTerm]);
+      const targetNames = aliases[categoryTerm] || [categoryTerm];
+
+      // 1. Find root categories matching the term (or aliases)
+      const matchingRoots = categories.filter(c =>
+        targetNames.some(name => c.name.toLowerCase().includes(name))
+      );
+
+      // 2. Collect all descendant IDs for these roots
+      const validCategoryIds = new Set<number>();
+
+      const addCategoryAndChildren = (parentId: number) => {
+        validCategoryIds.add(parentId);
+        // Find immediate children
+        const children = categories.filter(c => c.parent_id === parentId);
+        children.forEach(child => addCategoryAndChildren(child.id));
+      };
+
+      matchingRoots.forEach(root => addCategoryAndChildren(root.id));
+
+      if (validCategoryIds.size > 0) {
+        query = query.in("category_id", Array.from(validCategoryIds));
       } else {
-        // Direct search on category name (partial)
-        query = query.ilike("category.name", `%${categoryTerm}%`);
+        // No matching category found, ensure no results
+        query = query.eq("id", -1);
       }
     } else if (term) {
       query = query.ilike("name", `%${term}%`);

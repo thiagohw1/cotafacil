@@ -84,15 +84,17 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete, 
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => onAddSubcategory(category)}
-                        title="Adicionar subcategoria"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    {level < 4 && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => onAddSubcategory(category)}
+                            title="Adicionar subcategoria"
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             </div>
 

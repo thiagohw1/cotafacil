@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,10 +10,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus } from 'lucide-react';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Loader2, Plus, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Combobox } from '@/components/ui/combobox';
+import { cn } from "@/lib/utils";
+import { useTenant } from "@/hooks/useTenant";
 
 interface AddPOItemFormProps {
     poId: number;
@@ -22,11 +28,23 @@ interface AddPOItemFormProps {
 }
 
 export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItemFormProps) {
+    const { tenantId } = useTenant();
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState<any[]>([]);
+    const [categories, setCategories] = useState<any[]>([]);
     const [packages, setPackages] = useState<any[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const { toast } = useToast();
+
+    // Search State
+    const [searchTerm, setSearchTerm] = useState("");
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const listRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const qtyRef = useRef<HTMLInputElement>(null);
+    const priceRef = useRef<HTMLInputElement>(null);
+    const [showNotes, setShowNotes] = useState(false);
 
     const [formData, setFormData] = useState({
         product_id: '',
@@ -36,31 +54,138 @@ export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItem
         notes: '',
     });
 
-    // Carregar produtos ao montar
+    // Load categories on mount
     useEffect(() => {
-        loadProducts();
-    }, []);
+        if (tenantId) {
+            fetchCategories();
+        }
+    }, [tenantId]);
 
-    const loadProducts = async () => {
+    // Debounce search
+    useEffect(() => {
+        setProducts([]);
+        setSelectedIndex(0);
+
+        if (!searchTerm) return;
+
+        const timer = setTimeout(() => {
+            fetchProducts(searchTerm);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm, tenantId, categories]);
+
+    const fetchCategories = async () => {
+        const { data } = await supabase
+            .from("categories")
+            .select("id, name, parent_id")
+            .order("name");
+
+        setCategories(data || []);
+    };
+
+    const fetchProducts = async (term: string) => {
+        if (!tenantId) return;
         setLoadingProducts(true);
-        console.log('🔍 Carregando produtos...');
 
-        const { data, error } = await supabase
-            .from('products')
-            .select('id, name')
-            .order('name');
+        // Smart category search logic
+        const isCategorySearch = term.trim().startsWith("//");
 
-        console.log('📊 Resultado produtos:', { data, error });
+        let query = supabase
+            .from("products")
+            .select("id, name")
+            .eq("tenant_id", tenantId)
+            .eq("active", true)
+            .is("deleted_at", null)
+            .order("name")
+            .limit(20);
 
-        if (error) {
-            console.error('❌ Erro detalhado:', error);
+        if (isCategorySearch) {
+            const categoryTerm = term.trim().substring(2).toLowerCase();
+            const aliases: Record<string, string[]> = {
+                "flv": ["frutas", "legumes", "verduras", "hortifruti", "flv"],
+                "carnes": ["carnes", "bovinos", "suínos", "aves", "açougue", "suinos", "acougue"],
+            };
+
+            const targetNames = aliases[categoryTerm] || [categoryTerm];
+
+            // 1. Find root categories
+            const matchingRoots = categories.filter(c =>
+                targetNames.some(name => c.name.toLowerCase().includes(name))
+            );
+
+            // 2. Recursive children
+            const validCategoryIds = new Set<number>();
+            const addCategoryAndChildren = (parentId: number) => {
+                validCategoryIds.add(parentId);
+                const children = categories.filter(c => c.parent_id === parentId);
+                children.forEach(child => addCategoryAndChildren(child.id));
+            };
+            matchingRoots.forEach(root => addCategoryAndChildren(root.id));
+
+            if (validCategoryIds.size > 0) {
+                query = query.in("category_id", Array.from(validCategoryIds));
+            } else {
+                query = query.eq("id", -1); // No match
+            }
+        } else {
+            query = query.ilike("name", `%${term}%`);
         }
 
+        const { data, error } = await query;
         if (!error && data) {
             setProducts(data);
-            console.log('✅ Produtos carregados:', data.length);
+            if (data.length > 0) setSearchOpen(true);
         }
         setLoadingProducts(false);
+    };
+
+    // Auto-scroll logic
+    useEffect(() => {
+        if (selectedIndex >= 0 && listRef.current) {
+            const list = listRef.current;
+            const item = list.children[selectedIndex] as HTMLElement;
+            if (item) {
+                const listTop = list.scrollTop;
+                const listBottom = listTop + list.clientHeight;
+                const itemTop = item.offsetTop;
+                const itemBottom = itemTop + item.clientHeight;
+
+                if (itemTop < listTop) {
+                    list.scrollTop = itemTop;
+                } else if (itemBottom > listBottom) {
+                    list.scrollTop = itemBottom - list.clientHeight;
+                }
+            }
+        }
+    }, [selectedIndex]);
+
+    const handleSelectProduct = (product: any) => {
+        setFormData({ ...formData, product_id: product.id.toString(), package_id: '' });
+        setSearchTerm(product.name);
+        setSearchOpen(false);
+        loadPackages(product.id);
+        // Focus Qty after small delay to ensure state update / render
+        setTimeout(() => {
+            qtyRef.current?.focus();
+        }, 100);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setSelectedIndex((prev) => (prev + 1) % products.length);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setSelectedIndex((prev) => (prev - 1 + products.length) % products.length);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (products.length > 0 && searchOpen) {
+                handleSelectProduct(products[selectedIndex]);
+            }
+        } else if (e.key === "Escape") {
+            setSearchOpen(false);
+        }
     };
 
     const loadPackages = async (productId: number) => {
@@ -86,15 +211,7 @@ export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItem
         }
     };
 
-    const handleProductChange = (productId: string) => {
-        setFormData(prev => ({ ...prev, product_id: productId }));
-        if (productId) {
-            loadPackages(parseInt(productId));
-        } else {
-            setPackages([]);
-            setFormData(prev => ({ ...prev, package_id: '' }));
-        }
-    };
+
 
     const calculateTotal = () => {
         const qty = parseFloat(formData.qty) || 0;
@@ -168,6 +285,13 @@ export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItem
                 notes: '',
             });
             setPackages([]);
+            setSearchTerm("");
+            setShowNotes(false);
+
+            // Focus Search Input again for rapid entry
+            setTimeout(() => {
+                searchRef.current?.focus();
+            }, 300);
 
             onSuccess();
         }
@@ -184,109 +308,179 @@ export function AddPOItemForm({ poId, existingItems = [], onSuccess }: AddPOItem
                 <h3 className="font-semibold">Adicionar Item ao Pedido</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Produto */}
-                <div className="space-y-2">
-                    <Label htmlFor="product">Produto *</Label>
-                    {loadingProducts ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Carregando...
+            <div className="flex flex-col gap-2">
+                <div className="flex items-end gap-2 w-full">
+                    {/* Produto (Flex 1 - Ocupa o espaço restante) */}
+                    <div className="flex-1 space-y-1">
+                        <Label htmlFor="product-search" className="text-xs">Produto</Label>
+                        <div className="relative">
+                            <Popover open={searchOpen && products.length > 0}>
+                                <PopoverTrigger asChild>
+                                    <div>
+                                        <Input
+                                            id="product-search"
+                                            ref={searchRef}
+                                            value={searchTerm}
+                                            onChange={(e) => {
+                                                setSearchTerm(e.target.value);
+                                                // Reset if text changed significantly from selection?
+                                                // Ideally we just search. If they pick, we set ID.
+                                            }}
+                                            onKeyDown={handleKeyDown}
+                                            onFocus={() => {
+                                                if (products.length > 0) setSearchOpen(true);
+                                            }}
+                                            onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+                                            placeholder="Digite para buscar (ex: //carnes)..."
+                                            className="w-full"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    className="p-0 w-[400px]"
+                                    align="start"
+                                    onOpenAutoFocus={(e) => e.preventDefault()}
+                                >
+                                    <div
+                                        ref={listRef}
+                                        className="max-h-[300px] overflow-y-auto modern-scrollbar p-1"
+                                    >
+                                        {loadingProducts && (
+                                            <div className="p-2 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Buscando...
+                                            </div>
+                                        )}
+                                        {!loadingProducts && products.length === 0 && (
+                                            <div className="p-2 text-center text-sm text-muted-foreground">
+                                                Nenhum produto encontrado.
+                                            </div>
+                                        )}
+                                        {products.map((product, index) => (
+                                            <div
+                                                key={product.id}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-2 cursor-pointer text-sm rounded-sm transition-colors",
+                                                    selectedIndex === index ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                                                )}
+                                                onClick={() => handleSelectProduct(product)}
+                                                onMouseEnter={() => setSelectedIndex(index)}
+                                            >
+                                                <span className="font-medium truncate flex-1">
+                                                    {product.name}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
-                    ) : (
-                        <Combobox
-                            options={products.map((p) => ({
-                                value: p.id.toString(),
-                                label: p.name,
-                            }))}
-                            value={formData.product_id}
-                            onValueChange={handleProductChange}
-                            placeholder="Digite para buscar..."
-                            searchPlaceholder="Buscar produto..."
-                            emptyText="Nenhum produto encontrado."
+                    </div>
+
+                    {/* Embalagem */}
+                    <div className="w-[100px] space-y-1">
+                        <Label htmlFor="package" className="text-xs">Emb.</Label>
+                        <Select
+                            key={`package-${formData.product_id}-${packages.length}`}
+                            value={formData.package_id}
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, package_id: value }))}
+                            disabled={!formData.product_id || packages.length === 0}
+                        >
+                            <SelectTrigger id="package" className="h-9 px-2">
+                                <SelectValue placeholder="-" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {packages.map((pkg) => (
+                                    <SelectItem key={pkg.id} value={pkg.id.toString()}>
+                                        {pkg.multiplier && pkg.multiplier > 1 ? `${pkg.unit}-${pkg.multiplier}` : pkg.unit}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Quantidade */}
+                    <div className="w-[80px] space-y-1">
+                        <Label htmlFor="qty" className="text-xs">Qtd.</Label>
+                        <Input
+                            id="qty"
+                            ref={qtyRef}
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={formData.qty}
+                            onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    priceRef.current?.focus();
+                                }
+                            }}
+                            placeholder="0"
+                            className="h-9 px-2"
                         />
-                    )}
-                </div>
+                    </div>
 
-                {/* Embalagem */}
-                <div className="space-y-2">
-                    <Label htmlFor="package">Embalagem</Label>
-                    <Select
-                        key={`package-${formData.product_id}-${packages.length}`}
-                        value={formData.package_id}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, package_id: value }))}
-                        disabled={!formData.product_id || packages.length === 0}
-                    >
-                        <SelectTrigger id="package">
-                            <SelectValue placeholder={packages.length === 0 ? "Sem embalagens" : "Selecione..."} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {packages.map((pkg) => (
-                                <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                                    {pkg.multiplier && pkg.multiplier > 1 ? `${pkg.unit}-${pkg.multiplier}` : pkg.unit}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                    {/* Preço Unitário */}
+                    <div className="w-[100px] space-y-1">
+                        <Label htmlFor="unit_price" className="text-xs">Preço</Label>
+                        <Input
+                            id="unit_price"
+                            ref={priceRef}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.unit_price}
+                            onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                            onKeyDown={(e) => {
+                                // Allow default form submit on Enter
+                            }}
+                            placeholder="0,00"
+                            className="h-9 px-2"
+                        />
+                    </div>
 
-                {/* Quantidade */}
-                <div className="space-y-2">
-                    <Label htmlFor="qty">Quantidade *</Label>
-                    <Input
-                        id="qty"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={formData.qty}
-                        onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
-                        placeholder="0"
-                    />
-                </div>
+                    {/* Total (Display) */}
+                    <div className="w-[80px] space-y-1 pb-2 flex justify-end">
+                        <span className="text-sm font-bold text-primary whitespace-nowrap">
+                            {total > 0 ? `R$ ${total.toFixed(2).replace('.', ',')}` : '-'}
+                        </span>
+                    </div>
 
-                {/* Preço Unitário */}
-                <div className="space-y-2">
-                    <Label htmlFor="unit_price">Preço Unit. *</Label>
-                    <Input
-                        id="unit_price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.unit_price}
-                        onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
-                        placeholder="R$ 0,00"
-                    />
-                </div>
-            </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 pb-[1px]">
+                        <Button
+                            type="button"
+                            variant={showNotes || formData.notes ? "secondary" : "ghost"}
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={() => setShowNotes(!showNotes)}
+                            title="Observações"
+                        >
+                            <MessageSquare className={cn("h-4 w-4", (showNotes || formData.notes) && "text-primary")} />
+                        </Button>
 
-            {/* Observações e Total */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div className="md:col-span-2 space-y-2">
-                    <Label htmlFor="notes">Observações</Label>
-                    <Textarea
-                        id="notes"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        placeholder="Informações adicionais..."
-                        rows={2}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Total do Item</Label>
-                    <div className="text-2xl font-bold text-primary">
-                        R$ {total.toFixed(2).replace('.', ',')}
+                        <Button type="submit" disabled={loading} size="sm" className="h-9 px-3">
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                            <span className="ml-1 hidden sm:inline">Add</span>
+                        </Button>
                     </div>
                 </div>
-            </div>
 
-            {/* Botão */}
-            <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Plus className="mr-2 h-4 w-4" />
-                    Adicionar Item
-                </Button>
+                {/* Observações Expandable */}
+                {showNotes && (
+                    <div className="w-full animate-in slide-in-from-top-2 fade-in duration-200">
+                        <Input
+                            id="notes"
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder="Observações do item..."
+                            className="h-9 text-sm"
+                            autoFocus
+                        />
+                    </div>
+                )}
             </div>
         </form>
     );
