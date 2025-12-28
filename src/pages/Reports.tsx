@@ -159,8 +159,7 @@ export default function Reports() {
                     requested_qty,
                     product_id,
                     winner_response_id,
-                    winner_supplier_id,
-                    quantity
+                    winner_supplier_id
                 ),
                 quote_suppliers(
                     id,
@@ -299,7 +298,7 @@ export default function Reports() {
                         const winnerRes = itemResponses.find((r: any) => r.id === item.winner_response_id);
                         if (winnerRes) {
                             const winPrice = winnerRes.price;
-                            const quantity = item.quantity || item.requested_qty || 1;
+                            const quantity = item.requested_qty || 1;
                             const itemTotal = winPrice * quantity;
 
                             quoteTotalValue += itemTotal;
@@ -326,8 +325,8 @@ export default function Reports() {
                         }
                     }
 
-                    quoteLowestTotal += minPrice * (item.quantity || 1);
-                    quoteHighestTotal += maxPrice * (item.quantity || 1);
+                    quoteLowestTotal += minPrice * (item.requested_qty || 1);
+                    quoteHighestTotal += maxPrice * (item.requested_qty || 1);
                 }
             });
 
