@@ -26,6 +26,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
@@ -35,6 +41,13 @@ interface ProductList {
   description: string | null;
   created_at: string;
   item_count?: number;
+  product_list_items?: {
+    product: {
+      category?: {
+        name: string;
+      } | null;
+    };
+  }[];
 }
 
 interface ListItem {
@@ -204,7 +217,7 @@ export default function ProductLists() {
 
     let query = supabase
       .from("product_lists")
-      .select("*, product_list_items(count)", { count: "exact" })
+      .select("*, product_list_items(id, product:products(category:categories(name))), count:product_list_items(count)", { count: "exact" })
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
       .order("name");
@@ -227,7 +240,7 @@ export default function ProductLists() {
     } else {
       const listsWithCount = data?.map((list: any) => ({
         ...list,
-        item_count: list.product_list_items?.[0]?.count || 0,
+        item_count: list.count?.[0]?.count || 0,
       })) || [];
       setLists(listsWithCount);
       setTotalCount(count || 0);
@@ -474,29 +487,148 @@ export default function ProductLists() {
   // derived selectedProduct now comes from state
   const selectedProduct = selectedProductData;
 
+  const CATEGORY_COLORS: Record<string, string> = {
+    "flv": "bg-green-500",
+    "hortifruti": "bg-green-500",
+    "frutas": "bg-green-500",
+    "legumes": "bg-green-500",
+    "verduras": "bg-green-500",
+
+    "açougue": "bg-red-500",
+    "acougue": "bg-red-500",
+    "carnes": "bg-red-500",
+    "bovinos": "bg-red-500",
+    "aves": "bg-red-500",
+    "suínos": "bg-red-500",
+
+    "congelados": "bg-blue-400",
+    "frios": "bg-blue-300",
+    "laticínios": "bg-yellow-400",
+    "laticinios": "bg-yellow-400",
+    "queijos": "bg-yellow-400",
+
+    "mercearia": "bg-amber-500",
+    "alimentos": "bg-amber-500",
+    "grãos": "bg-amber-600",
+
+    "bebidas": "bg-purple-500",
+    "limpeza": "bg-cyan-500",
+    "higiene": "bg-pink-500",
+    "padaria": "bg-orange-400",
+    "pães": "bg-orange-400",
+    "outros": "bg-gray-400"
+  };
+
+  const tailWindColors = [
+    "bg-red-400", "bg-orange-400", "bg-amber-400", "bg-yellow-400", "bg-lime-400",
+    "bg-green-400", "bg-emerald-400", "bg-teal-400", "bg-cyan-400", "bg-sky-400",
+    "bg-blue-400", "bg-indigo-400", "bg-violet-400", "bg-purple-400", "bg-fuchsia-400",
+    "bg-pink-400", "bg-rose-400"
+  ];
+
+  const getCategoryColor = (category: string) => {
+    if (!category) return CATEGORY_COLORS["outros"];
+
+    const normalized = category.toLowerCase().trim();
+    // Check direct mapping
+    if (CATEGORY_COLORS[normalized]) return CATEGORY_COLORS[normalized];
+
+    // Check if any key is contained in the category name (e.g. "Carnes Nobres" -> "Carnes")
+    const foundKey = Object.keys(CATEGORY_COLORS).find(key => normalized.includes(key));
+    if (foundKey) return CATEGORY_COLORS[foundKey];
+
+    // Hash fallback for unknown categories
+    let hash = 0;
+    for (let i = 0; i < category.length; i++) {
+      hash = category.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % tailWindColors.length;
+    return tailWindColors[index];
+  };
+
+  const getCategoryDistribution = (list: ProductList) => {
+    if (!list.product_list_items || list.product_list_items.length === 0) return [];
+
+    const counts: Record<string, number> = {};
+    const total = list.product_list_items.length;
+
+    list.product_list_items.forEach(item => {
+      const category = item.product?.category?.name || "Sem Categoria";
+      counts[category] = (counts[category] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: (count / total) * 100
+      }))
+      .sort((a, b) => b.count - a.count);
+  };
+
   const columns: Column<ProductList>[] = [
-    { key: "id", header: "ID", className: "w-16" },
-    { key: "name", header: "Nome" },
+    { key: "id", header: "ID", className: "w-16 py-0" },
+    { key: "name", header: "Nome", className: "py-0" },
+    {
+      key: "type",
+      header: "Tipo",
+      className: "w-48 py-0",
+      render: (item) => {
+        const distribution = getCategoryDistribution(item);
+        if (distribution.length === 0) return <span className="text-muted-foreground">-</span>;
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-muted">
+                  {distribution.map((dist, idx) => (
+                    <div
+                      key={idx}
+                      className={cn("h-full", getCategoryColor(dist.name))}
+                      style={{ width: `${dist.percentage}%` }}
+                    />
+                  ))}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex flex-col gap-1 text-xs">
+                  {distribution.map((dist, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className={cn("w-2 h-2 rounded-full", getCategoryColor(dist.name))} />
+                      <span>{dist.count} itens {dist.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+    },
     {
       key: "item_count",
       header: "Qtd. Itens",
+      className: "py-0",
       render: (item) => item.item_count || 0,
     },
     {
       key: "description",
       header: "Descrição",
+      className: "py-0",
       render: (item) => item.description || "-",
     },
     {
       key: "created_at",
       header: "Criada em",
+      className: "py-0",
       render: (item) =>
         format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR }),
     },
     {
       key: "actions",
       header: "",
-      className: "w-32",
+      className: "w-32 py-0",
       render: (item) => (
         <div className="flex items-center gap-2">
           <Button
@@ -538,27 +670,30 @@ export default function ProductLists() {
     {
       key: "index",
       header: "#",
-      className: "w-12",
+      className: "w-12 py-0",
       render: (_, index) => index + 1,
     },
     {
       key: "category",
       header: "Categoria",
+      className: "py-0",
       render: (item) => item.product.category?.name || "-",
     },
     {
       key: "product",
       header: "Produto",
+      className: "py-0",
       render: (item) => (
         <div>
-          <span className="text-xs text-muted-foreground">#{item.product.id}</span>
-          <span className="font-medium mr-2"> {item.product.name}</span>
+          <span className="text-xs text-muted-foreground mr-1">#{item.product.id}</span>
+          <span className="font-medium"> {item.product.name}</span>
         </div>
       ),
     },
     {
       key: "package",
       header: "Embalagem",
+      className: "py-0",
       render: (item) =>
         item.preferred_package
           ? `${item.preferred_package.unit}-${item.preferred_package.multiplier}`
@@ -567,12 +702,13 @@ export default function ProductLists() {
     {
       key: "qty",
       header: "Qtde Padrão",
+      className: "py-0",
       render: (item) => item.default_qty || "-",
     },
     {
       key: "actions",
       header: "",
-      className: "w-24",
+      className: "w-24 py-0",
       render: (item) => (
         <div className="flex items-center gap-2">
           <Button

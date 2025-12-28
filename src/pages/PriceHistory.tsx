@@ -39,10 +39,12 @@ interface PriceRecord {
     id: number;
     product_id: number;
     product_name: string;
+    product_unit: string | null;
     supplier_id: number;
     supplier_name: string;
     price: number;
     package_unit: string | null;
+    package_multiplier: number | null;
     recorded_at: string;
     source_quote_id: number | null;
 }
@@ -50,6 +52,7 @@ interface PriceRecord {
 interface Product {
     id: number;
     name: string;
+    unit: string | null;
     packages: {
         unit: string;
         is_default: boolean;
@@ -102,7 +105,7 @@ export default function PriceHistory() {
         const [productsRes, suppliersRes] = await Promise.all([
             supabase
                 .from("products")
-                .select("id, name, product_packages(unit, is_default)")
+                .select("id, name, unit, product_packages(unit, multiplier, is_default)")
                 .eq("tenant_id", tenantId)
                 .eq("active", true)
                 .order("name"),
@@ -149,10 +152,12 @@ export default function PriceHistory() {
                     id: r.id,
                     product_id: r.product_id,
                     product_name: product?.name || "Produto removido",
+                    product_unit: product?.unit || null,
                     supplier_id: r.supplier_id,
                     supplier_name: supplierMap.get(r.supplier_id) || "Fornecedor removido",
                     price: r.price,
                     package_unit: defaultPackage?.unit || null,
+                    package_multiplier: defaultPackage?.multiplier || 1,
                     recorded_at: r.recorded_at,
                     source_quote_id: r.source_quote_id,
                 };
@@ -235,10 +240,10 @@ export default function PriceHistory() {
     const exportToCSV = () => {
         const headers = ["Produto", "Fornecedor", "Preço", "Embalagem", "Data", "Cotação"];
         const rows = filteredRecords.map((r) => [
-            r.product_name,
+            `#${r.product_id} ${r.product_name} ${r.product_unit || ""}`,
             r.supplier_name,
             formatCurrency(r.price),
-            r.package_unit || "-",
+            r.package_unit ? `${r.package_unit}-${r.package_multiplier}` : "-",
             format(new Date(r.recorded_at), "dd/MM/yyyy HH:mm"),
             r.source_quote_id || "-",
         ]);
@@ -432,7 +437,13 @@ export default function PriceHistory() {
                                         const variation = getPriceVariation(record.product_id, record.supplier_id);
                                         return (
                                             <TableRow key={record.id}>
-                                                <TableCell className="font-medium">{record.product_name}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <div>
+                                                        <span className="text-muted-foreground mr-1">#{record.product_id}</span>
+                                                        <span>{record.product_name}</span>
+                                                        <span className="text-muted-foreground ml-1">{record.product_unit}</span>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>{record.supplier_name}</TableCell>
                                                 <TableCell className="font-medium">{formatCurrency(record.price)}</TableCell>
                                                 <TableCell>
@@ -466,7 +477,7 @@ export default function PriceHistory() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground">
-                                                    {record.package_unit || "-"}
+                                                    {record.package_unit ? `${record.package_unit}-${record.package_multiplier}` : "-"}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground">
                                                     {format(new Date(record.recorded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}

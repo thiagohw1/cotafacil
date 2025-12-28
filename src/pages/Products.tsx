@@ -32,7 +32,6 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { CategoryModal } from "@/components/modals/CategoryModal";
 
@@ -653,7 +652,7 @@ export default function Products() {
       key: "id",
       header: "ID",
       sortable: true,
-      className: "py-1",
+      className: "py-0",
     },
     {
       key: "name",
@@ -692,7 +691,7 @@ export default function Products() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Ações",
       className: "w-24 py-1",
       render: (item) => (
         <div className="flex items-center gap-2">

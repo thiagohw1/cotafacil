@@ -27,6 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -42,6 +49,13 @@ interface Quote {
   items_count?: number;
   suppliers_invited_count?: number;
   suppliers_responded_count?: number;
+  quote_items?: {
+    product: {
+      category: {
+        name: string;
+      } | null;
+    };
+  }[];
 }
 
 interface QuoteSummary {
@@ -109,7 +123,7 @@ export default function Quotes() {
     // Use the view to get statistics
     let query = supabase
       .from("quotes_list_view" as any)
-      .select("*", { count: "exact" })
+      .select("*, quote_items(product:products(category:categories(name)))", { count: "exact" })
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -314,6 +328,85 @@ export default function Quotes() {
     setDeleting(false);
   };
 
+  const CATEGORY_COLORS: Record<string, string> = {
+    "flv": "bg-green-500",
+    "hortifruti": "bg-green-500",
+    "frutas": "bg-green-500",
+    "legumes": "bg-green-500",
+    "verduras": "bg-green-500",
+
+    "açougue": "bg-red-500",
+    "acougue": "bg-red-500",
+    "carnes": "bg-red-500",
+    "bovinos": "bg-red-500",
+    "aves": "bg-red-500",
+    "suínos": "bg-red-500",
+
+    "congelados": "bg-blue-400",
+    "frios": "bg-blue-300",
+    "laticínios": "bg-yellow-400",
+    "laticinios": "bg-yellow-400",
+    "queijos": "bg-yellow-400",
+
+    "mercearia": "bg-amber-500",
+    "alimentos": "bg-amber-500",
+    "grãos": "bg-amber-600",
+
+    "bebidas": "bg-purple-500",
+    "limpeza": "bg-cyan-500",
+    "higiene": "bg-pink-500",
+    "padaria": "bg-orange-400",
+    "pães": "bg-orange-400",
+    "outros": "bg-gray-400"
+  };
+
+  const tailWindColors = [
+    "bg-red-400", "bg-orange-400", "bg-amber-400", "bg-yellow-400", "bg-lime-400",
+    "bg-green-400", "bg-emerald-400", "bg-teal-400", "bg-cyan-400", "bg-sky-400",
+    "bg-blue-400", "bg-indigo-400", "bg-violet-400", "bg-purple-400", "bg-fuchsia-400",
+    "bg-pink-400", "bg-rose-400"
+  ];
+
+  const getCategoryColor = (category: string) => {
+    if (!category) return CATEGORY_COLORS["outros"];
+
+    const normalized = category.toLowerCase().trim();
+    // Check direct mapping
+    if (CATEGORY_COLORS[normalized]) return CATEGORY_COLORS[normalized];
+
+    // Check if any key is contained in the category name
+    const foundKey = Object.keys(CATEGORY_COLORS).find(key => normalized.includes(key));
+    if (foundKey) return CATEGORY_COLORS[foundKey];
+
+    // Hash fallback
+    let hash = 0;
+    for (let i = 0; i < category.length; i++) {
+      hash = category.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % tailWindColors.length;
+    return tailWindColors[index];
+  };
+
+  const getCategoryDistribution = (quote: Quote) => {
+    if (!quote.quote_items || quote.quote_items.length === 0) return [];
+
+    const counts: Record<string, number> = {};
+    const total = quote.quote_items.length;
+
+    quote.quote_items.forEach(item => {
+      const category = item.product?.category?.name || "Sem Categoria";
+      counts[category] = (counts[category] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: (count / total) * 100
+      }))
+      .sort((a, b) => b.count - a.count);
+  };
+
   const columns: Column<Quote>[] = [
 
     {
@@ -328,6 +421,43 @@ export default function Quotes() {
             <span className="font-semibold text-foreground">{quoteCode}</span>
             <span className="text-xs text-muted-foreground">{item.title}</span>
           </div>
+        );
+      }
+    },
+    {
+      key: "type",
+      header: "Tipo",
+      className: "w-30 py-0",
+      render: (item) => {
+        const distribution = getCategoryDistribution(item);
+        if (distribution.length === 0) return <span className="text-muted-foreground">-</span>;
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-muted">
+                  {distribution.map((dist, idx) => (
+                    <div
+                      key={idx}
+                      className={cn("h-full", getCategoryColor(dist.name))}
+                      style={{ width: `${dist.percentage}%` }}
+                    />
+                  ))}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex flex-col gap-1 text-xs">
+                  {distribution.map((dist, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className={cn("w-2 h-2 rounded-full", getCategoryColor(dist.name))} />
+                      <span>{dist.count} itens {dist.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       }
     },
