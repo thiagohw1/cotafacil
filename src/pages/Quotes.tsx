@@ -508,18 +508,29 @@ export default function Quotes() {
     {
       key: "deadline_at",
       header: "Prazo",
-      render: (item) =>
-        item.deadline_at
-          ? format(new Date(item.deadline_at), "dd/MM/yyyy HH:mm", {
-            locale: ptBR,
-          })
-          : "-",
+      render: (item) => {
+        if (!item.deadline_at) return "-";
+        const date = new Date(item.deadline_at);
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium">{format(date, "dd/MM/yyyy", { locale: ptBR })}</span>
+            <span className="text-xs text-muted-foreground">{format(date, "HH:mm", { locale: ptBR })}</span>
+          </div>
+        );
+      },
     },
     {
       key: "created_at",
       header: "Criada em",
-      render: (item) =>
-        format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR }),
+      render: (item) => {
+        const date = new Date(item.created_at);
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium">{format(date, "dd/MM/yyyy", { locale: ptBR })}</span>
+            <span className="text-xs text-muted-foreground">{format(date, "HH:mm", { locale: ptBR })}</span>
+          </div>
+        );
+      },
     },
     {
       key: "actions",
