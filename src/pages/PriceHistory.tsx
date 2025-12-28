@@ -50,6 +50,10 @@ interface PriceRecord {
 interface Product {
     id: number;
     name: string;
+    packages: {
+        unit: string;
+        is_default: boolean;
+    }[];
 }
 
 interface Supplier {
@@ -98,7 +102,7 @@ export default function PriceHistory() {
         const [productsRes, suppliersRes] = await Promise.all([
             supabase
                 .from("products")
-                .select("id, name")
+                .select("id, name, product_packages(unit, is_default)")
                 .eq("tenant_id", tenantId)
                 .eq("active", true)
                 .order("name"),
@@ -114,7 +118,7 @@ export default function PriceHistory() {
         setSuppliers(suppliersRes.data || []);
 
         // Fetch price history
-        const { data: historyData } = await supabase
+        const { data: historyData, error } = await supabase
             .from("price_history")
             .select(`
         id,
@@ -122,27 +126,37 @@ export default function PriceHistory() {
         supplier_id,
         price,
         recorded_at,
-        source_quote_id,
-        products(name),
-        suppliers(name),
-        product_packages(unit)
+        source_quote_id
       `)
             .eq("tenant_id", tenantId)
             .order("recorded_at", { ascending: false })
             .limit(500);
 
+        if (error) {
+            console.error("Error fetching price history:", error);
+        }
+
         if (historyData) {
-            const mapped: PriceRecord[] = historyData.map((r: any) => ({
-                id: r.id,
-                product_id: r.product_id,
-                product_name: r.products?.name || "Produto removido",
-                supplier_id: r.supplier_id,
-                supplier_name: r.suppliers?.name || "Fornecedor removido",
-                price: r.price,
-                package_unit: r.product_packages?.unit || null,
-                recorded_at: r.recorded_at,
-                source_quote_id: r.source_quote_id,
-            }));
+            // Create lookup maps for faster access
+            const productMap = new Map(productsRes.data?.map(p => [p.id, p]) || []);
+            const supplierMap = new Map(suppliersRes.data?.map(s => [s.id, s.name]) || []);
+
+            const mapped: PriceRecord[] = historyData.map((r: any) => {
+                const product = productMap.get(r.product_id);
+                const defaultPackage = product?.product_packages?.find((p: any) => p.is_default) || product?.product_packages?.[0];
+
+                return {
+                    id: r.id,
+                    product_id: r.product_id,
+                    product_name: product?.name || "Produto removido",
+                    supplier_id: r.supplier_id,
+                    supplier_name: supplierMap.get(r.supplier_id) || "Fornecedor removido",
+                    price: r.price,
+                    package_unit: defaultPackage?.unit || null,
+                    recorded_at: r.recorded_at,
+                    source_quote_id: r.source_quote_id,
+                };
+            });
             setRecords(mapped);
         }
 

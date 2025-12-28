@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { DataTable, Column } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/search-input";
 import { ModalForm } from "@/components/ui/modal-form";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Plus, Pencil, Trash2, List, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, List, Package, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
@@ -21,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface ProductList {
@@ -33,15 +39,20 @@ interface ProductList {
 
 interface ListItem {
   id: number;
-  product: { id: number; name: string };
-  preferred_package?: { id: number; unit: string } | null;
+  product: {
+    id: number;
+    name: string;
+    category?: { name: string } | null;
+    product_packages?: { id: number; unit: string; multiplier: number; is_default: boolean }[];
+  };
+  preferred_package?: { id: number; unit: string; multiplier: number } | null;
   default_qty: number | null;
 }
 
 interface Product {
   id: number;
   name: string;
-  packages: { id: number; unit: string }[];
+  packages: { id: number; unit: string; multiplier: number; is_default: boolean }[];
 }
 
 export default function ProductLists() {
@@ -61,6 +72,15 @@ export default function ProductLists() {
   const [saving, setSaving] = useState(false);
   const [selectedList, setSelectedList] = useState<ProductList | null>(null);
   const [listItems, setListItems] = useState<ListItem[]>([]);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+
+  // Search state
+  const [openCombobox, setOpenCombobox] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [selectedProductData, setSelectedProductData] = useState<Product | null>(null);
+
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -74,9 +94,109 @@ export default function ProductLists() {
   useEffect(() => {
     if (tenantId) {
       fetchLists();
-      fetchProducts();
     }
   }, [tenantId, search, page]);
+
+  // Debounced search effect
+  useEffect(() => {
+    setProducts([]);
+    setSelectedIndex(-1);
+
+    if (!searchTerm) return;
+
+    const timer = setTimeout(() => {
+      fetchProducts(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, tenantId]);
+
+  // Auto-select default package when product changes
+  useEffect(() => {
+    if (selectedProductData && selectedProductData.packages.length > 0 && !newItem.package_id) {
+      const defaultPkg = selectedProductData.packages.find(p => p.is_default) || selectedProductData.packages[0];
+      if (defaultPkg) {
+        setNewItem(prev => ({ ...prev, package_id: defaultPkg.id.toString() }));
+      }
+    }
+  }, [selectedProductData, newItem.package_id]);
+
+  // Ref for the search results list to manage scrolling
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to selected item in search results
+  useEffect(() => {
+    if (selectedIndex >= 0 && listRef.current) {
+      const list = listRef.current;
+      const item = list.children[selectedIndex] as HTMLElement;
+      if (item) {
+        // Ensure the item is visible
+        const listTop = list.scrollTop;
+        const listBottom = listTop + list.clientHeight;
+        const itemTop = item.offsetTop;
+        const itemBottom = itemTop + item.clientHeight;
+
+        if (itemTop < listTop) {
+          list.scrollTop = itemTop;
+        } else if (itemBottom > listBottom) {
+          list.scrollTop = itemBottom - list.clientHeight;
+        }
+      }
+    }
+  }, [selectedIndex]);
+
+  const selectProduct = (product: Product) => {
+    const defaultPkg = product.packages.find((pkg) => pkg.is_default) || product.packages[0];
+    setNewItem(prev => ({
+      ...prev,
+      product_id: product.id.toString(),
+      package_id: defaultPkg ? defaultPkg.id.toString() : "",
+    }));
+    setSearchTerm(product.name);
+    setSelectedProductData(product);
+    setProducts([]);
+    setSelectedIndex(-1);
+  };
+
+  // ... existing handleKeyDown ...
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setSearchTerm("");
+      setNewItem({ ...newItem, product_id: "", package_id: "" });
+      setSelectedProductData(null);
+      setProducts([]);
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // If product is already selected, Add it.
+      if (newItem.product_id && selectedProductData) {
+        handleSaveItem();
+        return;
+      }
+
+      // Otherwise, select from search results
+      if (!products.length) return;
+      const index = selectedIndex >= 0 ? selectedIndex : 0;
+      if (products[index]) {
+        selectProduct(products[index]);
+      }
+      return;
+    }
+
+    if (!products.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % products.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + products.length) % products.length);
+    }
+  };
+
 
   const fetchLists = async () => {
     if (!tenantId) return;
@@ -84,7 +204,7 @@ export default function ProductLists() {
 
     let query = supabase
       .from("product_lists")
-      .select("*", { count: "exact" })
+      .select("*, product_list_items(count)", { count: "exact" })
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
       .order("name");
@@ -105,22 +225,33 @@ export default function ProductLists() {
         variant: "destructive",
       });
     } else {
-      setLists(data || []);
+      const listsWithCount = data?.map((list: any) => ({
+        ...list,
+        item_count: list.product_list_items?.[0]?.count || 0,
+      })) || [];
+      setLists(listsWithCount);
       setTotalCount(count || 0);
     }
     setLoading(false);
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (term: string) => {
     if (!tenantId) return;
 
-    const { data } = await supabase
+    let query = supabase
       .from("products")
-      .select("id, name, product_packages(id, unit)")
+      .select("id, name, product_packages(id, unit, multiplier, is_default)")
       .eq("tenant_id", tenantId)
       .eq("active", true)
       .is("deleted_at", null)
-      .order("name");
+      .order("name")
+      .limit(50);
+
+    if (term) {
+      query = query.ilike("name", `%${term}%`);
+    }
+
+    const { data } = await query;
 
     setProducts(
       data?.map((p) => ({
@@ -138,11 +269,12 @@ export default function ProductLists() {
         `
         id,
         default_qty,
-        product:products(id, name),
-        preferred_package:product_packages(id, unit)
+        product:products(id, name, category:categories(name), product_packages(id, unit, multiplier, is_default)),
+        preferred_package:product_packages(id, unit, multiplier)
       `
       )
-      .eq("list_id", listId);
+      .eq("list_id", listId)
+      .order("id");
 
     setListItems(data as any || []);
   };
@@ -174,10 +306,19 @@ export default function ProductLists() {
     setModalOpen(true);
   };
 
-  const handleManageItems = async (list: ProductList) => {
+  const openListModal = async (list: ProductList, readOnly: boolean) => {
+    setIsReadOnly(readOnly);
     setSelectedList(list);
+    setEditingItemId(null);
+    setNewItem({ product_id: "", package_id: "", default_qty: "" });
+    setSearchTerm("");
+    setSelectedProductData(null);
     await fetchListItems(list.id);
     setItemsModalOpen(true);
+  };
+
+  const handleManageItems = (list: ProductList) => {
+    openListModal(list, false);
   };
 
   const handleDelete = (list: ProductList) => {
@@ -225,10 +366,31 @@ export default function ProductLists() {
     setSaving(false);
   };
 
-  const handleAddItem = async () => {
+  const handleEditItem = (item: ListItem) => {
+    setEditingItemId(item.id);
+    setNewItem({
+      product_id: item.product.id.toString(),
+      package_id: item.preferred_package?.id.toString() || "",
+      default_qty: item.default_qty?.toString() || "",
+    });
+
+    // Construct Product object from the expanded item.product
+    // @ts-ignore - Supabase return type workaround
+    const prodPackages = item.product.product_packages || [];
+
+    setSelectedProductData({
+      id: item.product.id,
+      name: item.product.name,
+      packages: prodPackages
+    });
+
+    setSearchTerm(item.product.name);
+  };
+
+  const handleSaveItem = async () => {
     if (!selectedList || !newItem.product_id) return;
 
-    const { error } = await supabase.from("product_list_items").insert({
+    const payload = {
       list_id: selectedList.id,
       product_id: parseInt(newItem.product_id),
       preferred_package_id: newItem.package_id
@@ -237,16 +399,34 @@ export default function ProductLists() {
       default_qty: newItem.default_qty
         ? parseFloat(newItem.default_qty)
         : null,
-    });
+    };
+
+    let error;
+
+    if (editingItemId) {
+      const { error: updateError } = await supabase
+        .from("product_list_items")
+        .update(payload)
+        .eq("id", editingItemId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("product_list_items")
+        .insert(payload);
+      error = insertError;
+    }
 
     if (error) {
       toast({
-        title: "Erro ao adicionar item",
+        title: "Erro ao salvar item",
         description: error.message,
         variant: "destructive",
       });
     } else {
       setNewItem({ product_id: "", package_id: "", default_qty: "" });
+      setEditingItemId(null);
+      setSearchTerm(""); // Reset search after save
+      setSelectedProductData(null);
       fetchListItems(selectedList.id);
     }
   };
@@ -291,12 +471,17 @@ export default function ProductLists() {
     setSaving(false);
   };
 
-  const selectedProduct = products.find(
-    (p) => p.id.toString() === newItem.product_id
-  );
+  // derived selectedProduct now comes from state
+  const selectedProduct = selectedProductData;
 
   const columns: Column<ProductList>[] = [
+    { key: "id", header: "ID", className: "w-16" },
     { key: "name", header: "Nome" },
+    {
+      key: "item_count",
+      header: "Qtd. Itens",
+      render: (item) => item.item_count || 0,
+    },
     {
       key: "description",
       header: "Descrição",
@@ -349,6 +534,68 @@ export default function ProductLists() {
     },
   ];
 
+  const itemColumns: Column<ListItem>[] = [
+    {
+      key: "index",
+      header: "#",
+      className: "w-12",
+      render: (_, index) => index + 1,
+    },
+    {
+      key: "category",
+      header: "Categoria",
+      render: (item) => item.product.category?.name || "-",
+    },
+    {
+      key: "product",
+      header: "Produto",
+      render: (item) => (
+        <div>
+          <span className="text-xs text-muted-foreground">#{item.product.id}</span>
+          <span className="font-medium mr-2"> {item.product.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: "package",
+      header: "Embalagem",
+      render: (item) =>
+        item.preferred_package
+          ? `${item.preferred_package.unit}-${item.preferred_package.multiplier}`
+          : "-",
+    },
+    {
+      key: "qty",
+      header: "Qtde Padrão",
+      render: (item) => item.default_qty || "-",
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "w-24",
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEditItem(item)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleRemoveItem(item.id)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen">
       <Header
@@ -380,6 +627,7 @@ export default function ProductLists() {
           pageSize={pageSize}
           totalCount={totalCount}
           onPageChange={setPage}
+          onRowDoubleClick={(item) => openListModal(item, true)}
           emptyMessage="Nenhuma lista encontrada"
         />
       </div>
@@ -423,104 +671,188 @@ export default function ProductLists() {
       <ModalForm
         open={itemsModalOpen}
         onOpenChange={setItemsModalOpen}
-        title={`Itens da Lista: ${selectedList?.name}`}
-        onSubmit={(e) => e.preventDefault()}
+        title={`Itens da Lista: ${selectedList?.name} ${isReadOnly ? '(Visualização)' : ''}`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          setItemsModalOpen(false);
+        }}
         submitLabel="Fechar"
-        size="lg"
+        hideCancel={true}
+        size="xl"
       >
-        <div className="space-y-4">
-          <div className="rounded-lg border p-4">
-            <h4 className="font-medium mb-3">Adicionar Produto</h4>
-            <div className="grid grid-cols-4 gap-3">
-              <Select
-                value={newItem.product_id}
-                onValueChange={(value) =>
-                  setNewItem({ ...newItem, product_id: value, package_id: "" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="flex flex-col h-[75vh] space-y-4">
+          {!isReadOnly && (
+            <div className="rounded-lg border p-4 bg-muted/20 shrink-0">
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                {editingItemId ? (
+                  <>
+                    <Pencil className="h-4 w-4" />
+                    Editar Item
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Adicionar Produto
+                  </>
+                )}
+              </h4>
+              <div className="grid grid-cols-8 gap-3 items-end">
+                <div className="relative col-span-4">
+                  <Popover open={searchTerm.length > 0 && !newItem.product_id && products.length > 0}>
+                    <PopoverTrigger asChild>
+                      <div className="relative">
+                        <Input
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            if (newItem.product_id) {
+                              setNewItem({ ...newItem, product_id: "", package_id: "" });
+                              setSelectedProductData(null);
+                            }
+                          }}
+                          onKeyDown={handleKeyDown}
+                          placeholder="Buscar produto..."
+                          className="w-full"
+                        />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[500px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                      <div
+                        ref={listRef}
+                        className="max-h-[300px] overflow-y-auto modern-scrollbar p-1"
+                      >
+                        {products.map((product, index) => (
+                          <div
+                            key={product.id}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 cursor-pointer text-sm rounded-sm transition-colors",
+                              selectedIndex === index ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                            )}
+                            onClick={() => selectProduct(product)}
+                            onMouseEnter={() => setSelectedIndex(index)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 shrink-0",
+                                newItem.product_id === product.id.toString()
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            <div className="flex items-center gap-2 overflow-hidden w-full">
+                              <span className="text-xs text-muted-foreground shrink-0 font-mono bg-muted/50 px-1 rounded">
+                                {product.id}
+                              </span>
+                              <span className="font-medium truncate flex-1">
+                                {product.name}
+                              </span>
+                              {product.packages && product.packages.length > 0 && (
+                                <span className="text-xs text-muted-foreground shrink-0 border-l pl-2">
+                                  {(() => {
+                                    const def = product.packages.find(p => p.is_default) || product.packages[0];
+                                    return `${def.unit}-${def.multiplier}`;
+                                  })()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {newItem.product_id && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-0 h-9 w-9 z-10 hover:bg-transparent"
+                      onClick={() => {
+                        setNewItem({ ...newItem, product_id: "", package_id: "" });
+                        setSearchTerm("");
+                        setSelectedProductData(null);
+                        setSelectedIndex(-1);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
+                    </Button>
+                  )}
+                </div>
 
-              <Select
-                value={newItem.package_id}
-                onValueChange={(value) =>
-                  setNewItem({ ...newItem, package_id: value })
-                }
-                disabled={!selectedProduct?.packages.length}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Embalagem" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedProduct?.packages.map((pkg) => (
-                    <SelectItem key={pkg.id} value={pkg.id.toString()}>
-                      {pkg.unit}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <div className="col-span-1">
+                  <Select
+                    value={newItem.package_id}
+                    onValueChange={(value) =>
+                      setNewItem(prev => ({ ...prev, package_id: value }))
+                    }
+                    disabled={!selectedProduct?.packages?.length}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Emb" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedProduct?.packages?.map((pkg) => (
+                        <SelectItem key={pkg.id} value={pkg.id.toString()}>
+                          {pkg.unit}-{pkg.multiplier}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <Input
-                type="number"
-                placeholder="Qtde padrão"
-                value={newItem.default_qty}
-                onChange={(e) =>
-                  setNewItem({ ...newItem, default_qty: e.target.value })
-                }
-              />
+                <div className="col-span-1">
+                  <Input
+                    type="number"
+                    placeholder="Qtd"
+                    value={newItem.default_qty}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, default_qty: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveItem();
+                    }}
+                  />
+                </div>
 
-              <Button type="button" onClick={handleAddItem}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {listItems.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Nenhum item na lista</p>
-              </div>
-            ) : (
-              listItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                >
-                  <div>
-                    <span className="font-medium">{item.product.name}</span>
-                    {item.preferred_package && (
-                      <span className="text-muted-foreground ml-2">
-                        ({item.preferred_package.unit})
-                      </span>
-                    )}
-                    {item.default_qty && (
-                      <span className="text-sm text-muted-foreground ml-4">
-                        Qtde: {item.default_qty}
-                      </span>
-                    )}
-                  </div>
+                <div className="col-span-2 flex gap-2">
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveItem(item.id)}
+                    className="flex-1"
+                    onClick={handleSaveItem}
                   >
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                    {editingItemId ? "Atualizar" : "Adicionar"}
                   </Button>
+
+                  {editingItemId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setEditingItemId(null);
+                        setNewItem({ product_id: "", package_id: "", default_qty: "" });
+                        setSelectedProductData(null);
+                        setSearchTerm("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  )}
                 </div>
-              ))
-            )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto overflow-x-hidden modern-scrollbar pr-2">
+            <DataTable
+              columns={isReadOnly ? itemColumns.filter(c => c.key !== 'actions') : itemColumns}
+              data={listItems}
+              loading={false}
+              page={1}
+              pageSize={100}
+              totalCount={listItems.length}
+              onPageChange={() => { }}
+              emptyMessage="Nenhum item na lista"
+            />
           </div>
         </div>
       </ModalForm>

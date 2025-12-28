@@ -76,16 +76,16 @@ export function QuoteImportModal({
                                         <TableCell>
                                             {item.packages.length > 0 ? (
                                                 <Select
-                                                    value={item.package_id?.toString() || ""}
+                                                    value={item.package_id?.toString() || "default"}
                                                     onValueChange={(value) =>
-                                                        onUpdateImportItem(index, "package_id", value)
+                                                        onUpdateImportItem(index, "package_id", value === "default" ? "" : value)
                                                     }
                                                 >
                                                     <SelectTrigger className="h-8">
                                                         <SelectValue placeholder="Padrão" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="">Padrão</SelectItem>
+                                                        <SelectItem value="default">Padrão</SelectItem>
                                                         {item.packages.map((pkg) => (
                                                             <SelectItem key={pkg.id} value={pkg.id.toString()}>
                                                                 {pkg.unit} ({pkg.multiplier}x)

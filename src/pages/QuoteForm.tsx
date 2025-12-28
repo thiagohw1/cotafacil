@@ -9,6 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { QuoteResponsesMatrix } from "@/components/quotes/QuoteResponsesMatrix";
 import {
   Save,
@@ -73,6 +82,9 @@ export default function QuoteForm() {
   const [confirmAction, setConfirmAction] = useState<"open" | "close" | "cancel">(
     "open"
   );
+
+  const [validationErrorOpen, setValidationErrorOpen] = useState(false);
+  const [undecidedItemsList, setUndecidedItemsList] = useState<string[]>([]);
 
   useKeyboardShortcuts({
     onSave: () => handleSave(),
@@ -168,7 +180,12 @@ export default function QuoteForm() {
         title: quote.title,
         description: quote.description || "",
         deadline_at: quote.deadline_at
-          ? new Date(quote.deadline_at).toISOString().slice(0, 16)
+          ? (() => {
+            const date = new Date(quote.deadline_at);
+            return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+              .toISOString()
+              .slice(0, 16);
+          })()
           : "",
         status: quote.status,
         created_at: quote.created_at || "",
@@ -264,7 +281,9 @@ export default function QuoteForm() {
       tenant_id: tenantId,
       title: formData.title,
       description: formData.description || null,
-      deadline_at: formData.deadline_at || null,
+      deadline_at: formData.deadline_at
+        ? new Date(formData.deadline_at).toISOString()
+        : null,
       status: formData.status,
     };
 
@@ -400,17 +419,38 @@ export default function QuoteForm() {
 
     if (listItems && listItems.length > 0) {
       // Map list items with product info
-      const importItems: ImportListItem[] = listItems.map((item) => {
+      // Map list items with product info, skipping invalid products
+      const importItems: ImportListItem[] = [];
+      let skippedCount = 0;
+
+      listItems.forEach((item) => {
         const product = products.find((p) => p.id === item.product_id);
-        const defaultPackage = product?.packages.find((pkg) => pkg.is_default);
-        return {
+
+        if (!product) {
+          skippedCount++;
+          return;
+        }
+
+        const validPackage = product.packages.find((pkg) => pkg.id === item.preferred_package_id);
+        const defaultPackage = product.packages.find((pkg) => pkg.is_default);
+
+        importItems.push({
           product_id: item.product_id,
-          product_name: product?.name || "Produto não encontrado",
-          package_id: item.preferred_package_id || defaultPackage?.id || null,
+          product_name: product.name,
+          package_id: validPackage ? validPackage.id : (defaultPackage?.id || null),
           requested_qty: item.default_qty?.toString() || "",
-          packages: product?.packages || [],
-        };
+          packages: product.packages || [],
+        });
       });
+
+      if (skippedCount > 0) {
+        toast({
+          title: "Alguns itens foram ignorados",
+          description: `${skippedCount} produtos da lista não foram encontrados ou estão inativos.`,
+          variant: "warning",
+        });
+      }
+
       setImportListItems(importItems);
       setImportModalOpen(true);
     } else {
@@ -554,10 +594,78 @@ export default function QuoteForm() {
 
     const newStatus = statusMap[confirmAction];
 
-    // If closing the quote, create snapshot and save price history
+    // If closing the quote, perform validation checks
     if (confirmAction === "close") {
       try {
-        // Create snapshot
+        // 1. Fetch available responses to validate winners
+        const { data: responses } = await supabase
+          .from("quote_responses")
+          .select("id, quote_item_id, quote_supplier_id, price")
+          .gt("price", 0); // Only consider valid prices
+
+        if (responses) {
+          const undecidedItems: string[] = [];
+          const autoSelectUpdates: PromiseLike<any>[] = [];
+
+          // Check each item
+          items.forEach((item) => {
+            // If already has a winner, skip
+            if (item.winner_supplier_id) return;
+
+            // Get valid responses for this item
+            const itemResponses = responses.filter(r => r.quote_item_id === item.id);
+
+            if (itemResponses.length === 0) {
+              // No responses - ignore or warn? For now ignore.
+              return;
+            }
+
+            if (itemResponses.length === 1) {
+              // Auto-select the only option
+              const winnerResponse = itemResponses[0];
+              const supplier = quoteSuppliers.find(qs => qs.id === winnerResponse.quote_supplier_id);
+
+              if (supplier) {
+                console.log(`Auto-selecting item ${item.product.name} (ID: ${item.id})`);
+                autoSelectUpdates.push(
+                  supabase
+                    .from("quote_items")
+                    .update({
+                      winner_supplier_id: supplier.supplier_id,
+                      winner_response_id: winnerResponse.id,
+                      winner_reason: "lowest_price", // Default reason
+                      winner_set_at: new Date().toISOString(),
+                    })
+                    .eq("id", item.id)
+                    .then()
+                );
+              }
+            } else {
+              // Multiple options and no winner selected
+              undecidedItems.push(item.product.name);
+            }
+          });
+
+          // Block if there are conflicts
+          if (undecidedItems.length > 0) {
+            setConfirmOpen(false);
+            setUndecidedItemsList(undecidedItems);
+            setValidationErrorOpen(true);
+            return;
+          }
+
+          // Apply auto-selections if any
+          if (autoSelectUpdates.length > 0) {
+            await Promise.all(autoSelectUpdates);
+            toast({
+              title: "Seleção automática",
+              description: `${autoSelectUpdates.length} itens com oferta única foram selecionados automaticamente.`,
+              variant: "default",
+            });
+          }
+        }
+
+        // Proceed to create snapshot
         const { error: snapshotError } = await supabase.rpc("create_quote_snapshot", {
           p_quote_id: quoteId,
         });
@@ -810,14 +918,37 @@ export default function QuoteForm() {
 
                 <div className="col-span-12 md:col-span-3 space-y-2">
                   <Label htmlFor="deadline">Prazo da Cotação</Label>
-                  <Input
-                    id="deadline"
-                    type="datetime-local"
-                    value={formData.deadline_at}
-                    onChange={(e) =>
-                      setFormData({ ...formData, deadline_at: e.target.value })
-                    }
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="deadline-date"
+                      type="date"
+                      value={formData.deadline_at ? formData.deadline_at.split('T')[0] : ""}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        if (!newDate) {
+                          setFormData({ ...formData, deadline_at: "" });
+                          return;
+                        }
+                        const currentTime = formData.deadline_at ? formData.deadline_at.split('T')[1] : "12:00";
+                        setFormData({ ...formData, deadline_at: `${newDate}T${currentTime}` });
+                      }}
+                      className="flex-1"
+                    />
+                    <Input
+                      id="deadline-time"
+                      type="time"
+                      value={formData.deadline_at ? formData.deadline_at.split('T')[1] : ""}
+                      onChange={(e) => {
+                        const newTime = e.target.value;
+                        const currentDate = formData.deadline_at ? formData.deadline_at.split('T')[0] : "";
+                        if (currentDate) {
+                          setFormData({ ...formData, deadline_at: `${currentDate}T${newTime}` });
+                        }
+                      }}
+                      disabled={!formData.deadline_at}
+                      className="w-24"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -895,6 +1026,39 @@ export default function QuoteForm() {
         onConfirm={confirmStatusChange}
         variant={confirmAction === "cancel" ? "destructive" : "default"}
       />
+
+      <AlertDialog open={validationErrorOpen} onOpenChange={setValidationErrorOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Atenção: Ação Necessária</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                <div className="mt-2">
+                  <p className="mb-3 font-medium text-foreground">
+                    Não é possível encerrar a cotação pois existem itens com múltiplas ofertas sem um vencedor definido.
+                  </p>
+                  <p className="mb-2">Por favor, defina o vencedor para os seguintes itens:</p>
+                  <div className="bg-muted p-3 rounded-md max-h-[150px] overflow-y-auto mb-3">
+                    <ul className="list-disc pl-4 space-y-1">
+                      {undecidedItemsList.map((name, i) => (
+                        <li key={i} className="text-sm font-medium">{name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Acesse a aba <strong>Respostas</strong> e selecione os vencedores antes de encerrar.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setValidationErrorOpen(false)}>
+              Entendi
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <QuoteImportModal
         open={importModalOpen}

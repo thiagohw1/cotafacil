@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export interface Column<T> {
   key: string;
   header: string;
-  render?: (item: T) => React.ReactNode;
+  render?: (item: T, index: number) => React.ReactNode;
   className?: string;
   sortable?: boolean;
 }
@@ -28,6 +28,7 @@ interface DataTableProps<T> {
   totalCount?: number;
   onPageChange?: (page: number) => void;
   onRowClick?: (item: T) => void;
+  onRowDoubleClick?: (item: T) => void;
   getRowKey?: (item: T) => string | number;
   onSort?: (column: string) => void;
   sortColumn?: string;
@@ -44,6 +45,7 @@ export function DataTable<T extends Record<string, any>>({
   totalCount = 0,
   onPageChange,
   onRowClick,
+  onRowDoubleClick,
   getRowKey = (item) => item.id,
   onSort,
   sortColumn,
@@ -103,18 +105,19 @@ export function DataTable<T extends Record<string, any>>({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((item) => (
+              data.map((item, index) => (
                 <TableRow
                   key={getRowKey(item)}
                   className={cn(
                     onRowClick && "cursor-pointer hover:bg-muted/50"
                   )}
                   onClick={() => onRowClick?.(item)}
+                  onDoubleClick={() => onRowDoubleClick?.(item)}
                 >
                   {columns.map((column) => (
                     <TableCell key={column.key} className={column.className}>
                       {column.render
-                        ? column.render(item)
+                        ? column.render(item, index)
                         : item[column.key]}
                     </TableCell>
                   ))}

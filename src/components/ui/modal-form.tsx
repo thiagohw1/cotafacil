@@ -21,6 +21,8 @@ interface ModalFormProps {
   cancelLabel?: string;
   loading?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
+  hideCancel?: boolean;
+  hideSubmit?: boolean;
 }
 
 const sizeClasses = {
@@ -41,6 +43,8 @@ export function ModalForm({
   cancelLabel = "Cancelar",
   loading = false,
   size = "md",
+  hideCancel = false,
+  hideSubmit = false,
 }: ModalFormProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -54,18 +58,22 @@ export function ModalForm({
           </DialogHeader>
           <div className="py-4">{children}</div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              {cancelLabel}
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitLabel}
-            </Button>
+            {!hideCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                {cancelLabel}
+              </Button>
+            )}
+            {!hideSubmit && (
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {submitLabel}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

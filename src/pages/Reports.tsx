@@ -158,7 +158,9 @@ export default function Reports() {
                     id,
                     requested_qty,
                     product_id,
-                    winner_response_id
+                    winner_response_id,
+                    winner_supplier_id,
+                    quantity
                 ),
                 quote_suppliers(
                     id,
@@ -183,7 +185,14 @@ export default function Reports() {
 
 
         if (quotesData) {
-            processQuotesData(quotesData);
+            // Fetch responses for these quotes to calculate savings
+            const quoteIds = quotesData.map(q => q.id);
+            const { data: responsesData } = await supabase
+                .from("quote_responses")
+                .select("quote_item_id, price, id")
+                .in("quote_id", quoteIds);
+
+            processQuotesData(quotesData, responsesData || []);
         }
 
         // Fetch general stats
@@ -232,10 +241,13 @@ export default function Reports() {
         setLoading(false);
     };
 
-    const processQuotesData = (quotes: any[]) => {
+    const processQuotesData = (quotes: any[], responses: any[]) => {
         const savings: SavingsData[] = [];
         const supplierWins: Record<number, { name: string; wins: number; participations: number; value: number; responseTimes: number[] }> = {};
         const monthlyMap: Record<string, { quotes: number; value: number }> = {};
+
+        // Helper to get responses for an item
+        const getResponses = (itemId: number) => responses.filter(r => r.quote_item_id === itemId);
 
         quotes.forEach((quote) => {
             const monthKey = format(new Date(quote.created_at), "yyyy-MM");
@@ -244,7 +256,12 @@ export default function Reports() {
             }
             monthlyMap[monthKey].quotes++;
 
-            // Process suppliers for participation stats
+            let quoteTotalValue = 0;
+            let quoteLowestTotal = 0;
+            let quoteHighestTotal = 0;
+            let quoteSavings = 0;
+
+            // Process suppliers for participation stats FIRST (to ensure all invited suppliers are in the map)
             quote.quote_suppliers?.forEach((qs: any) => {
                 const supplierId = qs.supplier_id;
                 const supplierName = qs.suppliers?.name || "Desconhecido";
@@ -266,17 +283,63 @@ export default function Reports() {
                 }
             });
 
-            // For now, just count items - detailed savings requires winner data
-            const itemCount = quote.quote_items?.length || 0;
-            if (itemCount > 0) {
+            // Process items for Wins and Savings
+            const items = quote.quote_items || [];
+            items.forEach((item: any) => {
+                const itemResponses = getResponses(item.id);
+                const validPrices = itemResponses.map((r: any) => r.price).filter((p: number) => p > 0);
+
+                if (validPrices.length > 0) {
+                    const minPrice = Math.min(...validPrices);
+                    const maxPrice = Math.max(...validPrices);
+                    const avgPrice = validPrices.reduce((a: number, b: number) => a + b, 0) / validPrices.length;
+
+                    // If there is a winner
+                    if (item.winner_response_id) {
+                        const winnerRes = itemResponses.find((r: any) => r.id === item.winner_response_id);
+                        if (winnerRes) {
+                            const winPrice = winnerRes.price;
+                            const quantity = item.quantity || item.requested_qty || 1;
+                            const itemTotal = winPrice * quantity;
+
+                            quoteTotalValue += itemTotal;
+                            monthlyMap[monthKey].value += itemTotal;
+
+                            // Calculate Savings: (Average - Winner) * Qty
+                            // Only if we have multiple quotes to compare, otherwise 0 savings ?? 
+                            // Or vs Max Price? User requested "Economia". Usually (Highest - Paid) or (Avg - Paid).
+                            // Let's use Avg - Paid as a conservative "market savings" metric.
+                            if (validPrices.length > 1 && avgPrice > winPrice) {
+                                quoteSavings += (avgPrice - winPrice) * quantity;
+                            }
+
+                            // Track Supplier Win
+                            if (item.winner_supplier_id) {
+                                // Ensure supplier exists in map (might not be in quote_suppliers if added ad-hoc? Should be there though)
+                                if (!supplierWins[item.winner_supplier_id]) {
+                                    // If not found in participations (weird), init it.
+                                    supplierWins[item.winner_supplier_id] = { name: "Fornecedor " + item.winner_supplier_id, wins: 0, participations: 1, value: 0, responseTimes: [] };
+                                }
+                                supplierWins[item.winner_supplier_id].wins++;
+                                supplierWins[item.winner_supplier_id].value += itemTotal;
+                            }
+                        }
+                    }
+
+                    quoteLowestTotal += minPrice * (item.quantity || 1);
+                    quoteHighestTotal += maxPrice * (item.quantity || 1);
+                }
+            });
+
+            if (items.length > 0 && quoteTotalValue > 0) {
                 savings.push({
                     quote_id: quote.id,
                     quote_title: quote.title,
-                    total_value: 0,
-                    lowest_total: 0,
-                    highest_total: 0,
-                    savings: 0,
-                    savings_percent: 0,
+                    total_value: quoteTotalValue,
+                    lowest_total: quoteLowestTotal,
+                    highest_total: quoteHighestTotal,
+                    savings: quoteSavings,
+                    savings_percent: quoteTotalValue > 0 ? (quoteSavings / quoteTotalValue) * 100 : 0,
                 });
             }
         });
@@ -590,7 +653,38 @@ export default function Reports() {
                             Desempenho dos fornecedores baseado em vitórias e tempo de resposta
                         </CardDescription>
                     </CardHeader>
-                    {/* ... content ... */}
+                    <CardContent>
+                        <div className="space-y-4">
+                            {supplierRanking.map((supplier, index) => (
+                                <div key={supplier.supplier_id} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`
+                                            flex items-center justify-center w-8 h-8 rounded-full font-bold
+                                            ${index === 0 ? "bg-warning/20 text-warning" :
+                                                index === 1 ? "bg-muted-foreground/20 text-muted-foreground" :
+                                                    index === 2 ? "bg-amber-700/20 text-amber-700" : "bg-muted text-muted-foreground"}
+                                        `}>
+                                            {index + 1}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">{supplier.supplier_name}</p>
+                                            <div className="flex gap-2 text-xs text-muted-foreground">
+                                                <span>{supplier.wins} vitórias</span>
+                                                <span>•</span>
+                                                <span>{supplier.participations} part.</span>
+                                                <span>•</span>
+                                                <span>{formatCurrency(supplier.total_value)} total</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-medium">{formatHours(supplier.avg_response_time_hours)}</div>
+                                        <div className="text-xs text-muted-foreground">tempo médio</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
                 </Card>
 
                 {/* Savings by Quote */}

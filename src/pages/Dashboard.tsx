@@ -15,6 +15,7 @@ import {
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
+  Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -45,7 +46,9 @@ interface Stats {
   activeSuppliers: number;
   totalProducts: number;
   responseRate: number;
+  /* Cleaned interface */
   avgResponseTime: number;
+  totalSavings: number;
 }
 
 interface Quote {
@@ -65,6 +68,8 @@ interface SupplierStats {
   name: string;
   responseCount: number;
   responseRate: number;
+  winCount: number;
+  totalWonValue: number;
 }
 
 interface ProductStats {
@@ -87,6 +92,7 @@ export default function Dashboard() {
     totalProducts: 0,
     responseRate: 0,
     avgResponseTime: 0,
+    totalSavings: 0,
   });
   const [recentQuotes, setRecentQuotes] = useState<Quote[]>([]);
   const [expiringQuotes, setExpiringQuotes] = useState<Quote[]>([]);
@@ -142,24 +148,25 @@ export default function Dashboard() {
 
       let responseRate = 0;
       let avgResponseTime = 0;
+      let totalSavings = 0;
 
       // Calculate response stats
       if (quoteSuppliers && quoteSuppliers.length > 0) {
         const submitted = quoteSuppliers.filter((qs) => qs.status === "submitted").length;
         const partial = quoteSuppliers.filter((qs) => qs.status === "partial").length;
         const pending = quoteSuppliers.filter((qs) => qs.status === "invited" || qs.status === "viewed").length;
-        
+
         responseRate = Math.round((submitted / quoteSuppliers.length) * 100);
-        
+
         // Calculate average response time
         const responseTimes = quoteSuppliers
           .filter((qs) => qs.status === "submitted" && qs.submitted_at && qs.invited_at)
           .map((qs) => differenceInHours(new Date(qs.submitted_at!), new Date(qs.invited_at)));
-        
+
         if (responseTimes.length > 0) {
           avgResponseTime = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
         }
-        
+
         setResponseStats([
           { name: "Enviados", value: submitted, color: "hsl(var(--success))" },
           { name: "Parciais", value: partial, color: "hsl(var(--warning))" },
@@ -169,7 +176,7 @@ export default function Dashboard() {
         // Low participation (open quotes with < 2 submissions)
         const openQuoteIds = quotes.filter((q) => q.status === "open").map((q) => q.id);
         const participationMap = new Map<number, { total: number; submitted: number }>();
-        
+
         openQuoteIds.forEach((id) => {
           participationMap.set(id, { total: 0, submitted: 0 });
         });
@@ -190,7 +197,7 @@ export default function Dashboard() {
             submittedCount: participationMap.get(q.id)?.submitted || 0,
           }))
           .filter((q) => q.submittedCount < 2 && q.supplierCount > 0);
-        
+
         setLowParticipation(lowPart);
 
         // Top suppliers by response count with rate
@@ -208,13 +215,70 @@ export default function Dashboard() {
           .eq("tenant_id", tenantId)
           .is("deleted_at", null);
 
+        // Calculate Savings and Winners Ranking
+        const supplierWins = new Map<number, { count: number; value: number }>();
+
+        // Fetch all items that have a winner
+        const { data: wonItems } = await supabase
+          .from("quote_items")
+          .select(`
+            id, 
+            winner_supplier_id, 
+            winner_response_id, 
+            quantity, 
+            product_id,
+            quote_id
+          `)
+          .in("quote_id", quotes.map(q => q.id)) // Use .in for array
+          .not("winner_supplier_id", "is", null);
+
+        if (wonItems && wonItems.length > 0) {
+          // Get all responses for these items to calculate avg price
+          const { data: itemResponses } = await supabase
+            .from("quote_responses")
+            .select("quote_item_id, price, id")
+            .in("quote_item_id", wonItems.map(i => i.id));
+
+          if (itemResponses) {
+            wonItems.forEach(item => {
+              const responses = itemResponses.filter(r => r.quote_item_id === item.id);
+              const winnerRes = responses.find(r => r.id === item.winner_response_id);
+
+              if (winnerRes && winnerRes.price > 0) {
+                // Calculate Savings: (Average - Winner) * Qty
+                // Calculate only if there are other valid prices
+                const validPrices = responses.map(r => r.price).filter(p => p > 0);
+                if (validPrices.length > 1) {
+                  const avgPrice = validPrices.reduce((a, b) => a + b, 0) / validPrices.length;
+                  if (avgPrice > winnerRes.price) {
+                    totalSavings += (avgPrice - winnerRes.price) * (item.quantity || 1);
+                  }
+                }
+
+                // Track Supplier Wins
+                if (item.winner_supplier_id) {
+                  const current = supplierWins.get(item.winner_supplier_id) || { count: 0, value: 0 };
+                  current.count++;
+                  current.value += winnerRes.price * (item.quantity || 1);
+                  supplierWins.set(item.winner_supplier_id, current);
+                }
+              }
+            });
+          }
+        }
+
         const topSuppliersData = Array.from(supplierStats.entries())
-          .map(([id, stats]) => ({
-            name: suppliersData?.find((s) => s.id === id)?.name || `Fornecedor ${id}`,
-            responseCount: stats.responses,
-            responseRate: stats.invites > 0 ? Math.round((stats.responses / stats.invites) * 100) : 0,
-          }))
-          .sort((a, b) => b.responseCount - a.responseCount)
+          .map(([id, stats]) => {
+            const winStats = supplierWins.get(id) || { count: 0, value: 0 };
+            return {
+              name: suppliersData?.find((s) => s.id === id)?.name || `Fornecedor ${id}`,
+              responseCount: stats.responses,
+              responseRate: stats.invites > 0 ? Math.round((stats.responses / stats.invites) * 100) : 0,
+              winCount: winStats.count,
+              totalWonValue: winStats.value
+            };
+          })
+          .sort((a, b) => b.winCount - a.winCount) // Sort by wins now
           .slice(0, 5);
 
         setTopSuppliers(topSuppliersData);
@@ -227,6 +291,7 @@ export default function Dashboard() {
         totalProducts: productsResult.data?.length || 0,
         responseRate,
         avgResponseTime,
+        totalSavings,
       });
 
       // Monthly trend (last 6 months)
@@ -235,7 +300,7 @@ export default function Dashboard() {
         const monthDate = subMonths(now, i);
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
-        
+
         const monthQuotes = quotes.filter((q) => {
           const created = new Date(q.created_at);
           return created >= monthStart && created <= monthEnd;
@@ -447,12 +512,12 @@ export default function Dashboard() {
                   <AreaChart data={monthlyTrend}>
                     <defs>
                       <linearGradient id="colorQuotes" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorResponses" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--info))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--info))" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="hsl(var(--info))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--info))" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -509,10 +574,10 @@ export default function Dashboard() {
                     <BarChart data={topProducts} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis type="number" className="text-xs" />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        width={150} 
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={150}
                         className="text-xs"
                         tick={{ fontSize: 12 }}
                       />
@@ -597,7 +662,7 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-warning" />
-                Fornecedores com Mais Respostas
+                Fornecedores com Mais Vitórias
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -612,13 +677,18 @@ export default function Dashboard() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{supplier.name}</p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-muted-foreground">
+                            {supplier.winCount} vitórias
+                          </p>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-success/10 text-success">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(supplier.totalWonValue)}
+                          </span>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          {supplier.responseCount} respostas
+                          {supplier.responseRate}% part.
                         </p>
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-success/10 text-success">
-                          {supplier.responseRate}%
-                        </span>
                       </div>
                     </div>
                   </div>

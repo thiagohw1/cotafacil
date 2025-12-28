@@ -6,6 +6,11 @@ export interface QuoteItem {
     notes: string | null;
     product?: { name: string };
     package?: { unit: string; multiplier?: number } | null;
+    winner_supplier_id?: number | null;
+    winner_response_id?: number | null;
+    winner_reason?: string | null;
+    winner_set_at?: string | null;
+    winner_response?: { price: number };
 }
 
 export interface QuoteSupplier {
