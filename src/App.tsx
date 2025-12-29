@@ -23,6 +23,7 @@ import Reports from "./pages/Reports";
 import Permissions from "./pages/Permissions";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PurchaseOrderView from "./pages/PurchaseOrderView";
 import PODashboard from "./pages/PODashboard";
@@ -62,6 +63,7 @@ const App = () => (
                   <Route path="/purchase-orders/dashboard" element={<PODashboard />} />
                   <Route path="/purchase-orders/:id" element={<PurchaseOrderView />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="/notifications" element={<Notifications />} />
                 </Route>
 

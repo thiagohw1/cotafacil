@@ -67,6 +67,7 @@ const navigation = [
   { name: "Relatórios", href: "/reports", icon: BarChart3 },
   { name: "Pedidos de Compra", href: "/purchase-orders", icon: ShoppingCart },
   { name: "Permissões", href: "/permissions", icon: Shield },
+  { name: "Configurações", href: "/settings", icon: Settings },
 
 ];
 
@@ -207,17 +208,14 @@ export function SidebarContent({ onLinkClick, collapsed = false, onToggle }: Sid
           <DropdownMenuContent align="end" className="w-56 mb-2" side="right">
             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              navigate("/profile");
+              if (onLinkClick) onLinkClick();
+            }}>
               <User className="mr-2 h-4 w-4" />
               <span>Meu Perfil</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              navigate("/settings");
-              if (onLinkClick) onLinkClick();
-            }}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Configurações</span>
-            </DropdownMenuItem>
+
             <DropdownMenuSub>
               {/* Theme Submenu content remains same */}
               <DropdownMenuSubTrigger>
