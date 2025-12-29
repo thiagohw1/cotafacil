@@ -34,7 +34,7 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete, 
         <div className="select-none">
             <div
                 className={cn(
-                    "flex items-center justify-between py-2 px-3 hover:bg-muted/50 rounded-md group transition-colors",
+                    "flex items-center justify-between py-1 px-2 hover:bg-muted/50 rounded-md group transition-colors",
                     level > 0 && "ml-6"
                 )}
             >
@@ -99,23 +99,35 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete, 
             </div>
 
             {isExpanded && hasChildren && (
-                <div className="ml-6 relative border-l border-border/50">
-                    {children.map((child) => {
+                <div className="ml-1 pl-5 relative">
+                    {children.map((child, index) => {
+                        const isLast = index === children.length - 1;
                         const grandChildren = allCategories.filter((c) => c.parent_id === child.id);
+
                         return (
                             <div key={child.id} className="relative">
-                                {/* Connector Line */}
-                                <div className="absolute -left-[1px] top-6 w-4 h-[1px] bg-border/50" />
-
-                                <TreeNode
-                                    category={child}
-                                    level={level + 1}
-                                    children={grandChildren}
-                                    allCategories={allCategories}
-                                    onEdit={onEdit}
-                                    onDelete={onDelete}
-                                    onAddSubcategory={onAddSubcategory}
+                                {/* Vertical Spine Segment */}
+                                <div
+                                    className={cn(
+                                        "absolute left-0 border-l border-slate-300 dark:border-slate-600 w-px",
+                                        isLast ? "h-6 top-0" : "h-full top-0"
+                                    )}
                                 />
+
+                                {/* Horizontal Connector (Elbow) */}
+                                <div className="absolute left-0 top-6 w-20 border-b border-slate-300 dark:border-slate-600 rounded-bl-xl h-0" />
+
+                                <div className="pl-12">
+                                    <TreeNode
+                                        category={child}
+                                        level={level + 1}
+                                        children={grandChildren}
+                                        allCategories={allCategories}
+                                        onEdit={onEdit}
+                                        onDelete={onDelete}
+                                        onAddSubcategory={onAddSubcategory}
+                                    />
+                                </div>
                             </div>
                         );
                     })}
