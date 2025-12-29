@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User, Bell, Shield } from "lucide-react";
+import { AvatarUpload } from "@/components/profile/AvatarUpload";
 
 interface NotificationSettings {
     email_on_quote_response: boolean;
@@ -26,6 +27,7 @@ export default function Profile() {
     const [profileData, setProfileData] = useState({
         full_name: "",
         email: "",
+        avatar_url: null as string | null,
     });
 
     const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -46,6 +48,7 @@ export default function Profile() {
         setProfileData({
             full_name: profile?.full_name || "",
             email: profile?.email || "",
+            avatar_url: profile?.avatar_url || null,
         });
 
         const savedNotificationSettings = localStorage.getItem(`notification_settings_${user?.id}`);
@@ -125,7 +128,13 @@ export default function Profile() {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="space-y-6">
+                                <AvatarUpload
+                                    userId={user?.id || ""}
+                                    avatarUrl={profileData.avatar_url}
+                                    fullName={profileData.full_name}
+                                    onAvatarUpdate={(url) => setProfileData(prev => ({ ...prev, avatar_url: url }))}
+                                />
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="full_name">Nome Completo</Label>

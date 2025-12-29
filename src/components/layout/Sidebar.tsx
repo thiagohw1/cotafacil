@@ -188,6 +188,7 @@ export function SidebarContent({ onLinkClick, collapsed = false, onToggle }: Sid
             <Button variant="ghost" className={cn("flex-1 justify-start h-auto py-3 px-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", collapsed && "justify-center px-0 w-full")}>
               <div className={cn("flex items-center gap-3 text-left", collapsed && "gap-0 justify-center")}>
                 <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile?.avatar_url || ""} alt={profile?.full_name || "User"} className="object-cover" />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     {profile?.full_name?.charAt(0) || "U"}
                   </AvatarFallback>
