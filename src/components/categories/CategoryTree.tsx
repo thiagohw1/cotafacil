@@ -98,14 +98,16 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete, 
                 </div>
             </div>
 
-            {
-                isExpanded && hasChildren && (
-                    <div className="border-l border-border ml-[1.1rem]">
-                        {children.map((child) => {
-                            const grandChildren = allCategories.filter((c) => c.parent_id === child.id);
-                            return (
+            {isExpanded && hasChildren && (
+                <div className="ml-6 relative border-l border-border/50">
+                    {children.map((child) => {
+                        const grandChildren = allCategories.filter((c) => c.parent_id === child.id);
+                        return (
+                            <div key={child.id} className="relative">
+                                {/* Connector Line */}
+                                <div className="absolute -left-[1px] top-6 w-4 h-[1px] bg-border/50" />
+
                                 <TreeNode
-                                    key={child.id}
                                     category={child}
                                     level={level + 1}
                                     children={grandChildren}
@@ -114,12 +116,12 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete, 
                                     onDelete={onDelete}
                                     onAddSubcategory={onAddSubcategory}
                                 />
-                            );
-                        })}
-                    </div>
-                )
-            }
-        </div >
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
     );
 }
 

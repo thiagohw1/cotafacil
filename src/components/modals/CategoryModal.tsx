@@ -93,8 +93,16 @@ export function CategoryModal({
                 variant: "destructive",
             });
         } else {
+            const parentName = parentOptions.find(p => p.id.toString() === formData.parent_id)?.name;
+            const description = parentName
+                ? `Sucesso ao criar a classificação "${formData.name}" no setor de "${parentName}".`
+                : `Sucesso ao criar a classificação "${formData.name}".`;
+
             toast({
-                title: categoryToEdit ? "Categoria atualizada" : "Categoria criada",
+                title: categoryToEdit ? "Categoria Atualizada" : "Sucesso!",
+                description: description,
+                variant: "success",
+                duration: 3000,
             });
             onOpenChange(false);
             onSuccess();

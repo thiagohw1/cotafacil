@@ -9,13 +9,6 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { CategoryModal, Category } from "@/components/modals/CategoryModal";
 import { CategoryTree } from "@/components/categories/CategoryTree";
@@ -38,11 +31,11 @@ export default function Categories() {
     if (tenantId) {
       fetchCategories();
     }
-  }, [tenantId, search]); // Removed page dependency
+  }, [tenantId, search]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (showLoading = true) => {
     if (!tenantId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
 
     let query = supabase
       .from("categories")
@@ -54,10 +47,6 @@ export default function Categories() {
     if (search) {
       query = query.ilike("name", `%${search}%`);
     }
-
-    // Removed pagination range
-    // const from = (page - 1) * pageSize;
-    // query = query.range(from, from + pageSize - 1);
 
     const { data, count, error } = await query;
 
@@ -71,7 +60,7 @@ export default function Categories() {
       setCategories(data || []);
       setTotalCount(count || 0);
     }
-    setLoading(false);
+    if (showLoading) setLoading(false);
   };
 
   const handleCreate = () => {
@@ -119,7 +108,7 @@ export default function Categories() {
     } else {
       toast({ title: "Categoria excluída" });
       setDeleteOpen(false);
-      fetchCategories();
+      fetchCategories(false);
     }
     setSaving(false);
   };
@@ -169,9 +158,20 @@ export default function Categories() {
     },
   ];
 
-  const parentOptions = categories.filter(
-    (c) => c.id !== selectedCategory?.id && !c.parent_id
-  );
+  // Determine valid parent options
+  const isDescendant = (potentialDescendant: Category, rootId: number): boolean => {
+    if (!potentialDescendant.parent_id) return false;
+    if (potentialDescendant.parent_id === rootId) return true;
+    const parent = categories.find(c => c.id === potentialDescendant.parent_id);
+    return parent ? isDescendant(parent, rootId) : false;
+  };
+
+  const parentOptions = categories.filter((c) => {
+    if (!selectedCategory) return true;
+    if (c.id === selectedCategory.id) return false;
+    if (isDescendant(c, selectedCategory.id)) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen">
@@ -202,9 +202,9 @@ export default function Categories() {
             data={categories}
             loading={loading}
             page={1}
-            pageSize={1000} // Show all findings
+            pageSize={1000}
             totalCount={totalCount}
-            onPageChange={() => { }} // No pagination on search results
+            onPageChange={() => { }}
             emptyMessage="Nenhuma categoria encontrada"
           />
         ) : (
@@ -229,7 +229,7 @@ export default function Categories() {
         categoryToEdit={selectedCategory}
         parentOptions={parentOptions}
         defaultParentId={defaultParentId}
-        onSuccess={fetchCategories}
+        onSuccess={() => fetchCategories(false)}
       />
 
       <ConfirmDialog
