@@ -132,11 +132,11 @@ export default function Suppliers() {
 
     const payload = {
       tenant_id: tenantId,
-      name: formData.name,
+      name: formData.name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()),
       cnpj: formData.cnpj || null,
       email: formData.email,
       phone: formData.phone || null,
-      contact_name: formData.contact_name || null,
+      contact_name: formData.contact_name ? formData.contact_name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()) : null,
       notes: formData.notes || null,
       active: formData.active,
     };

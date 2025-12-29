@@ -68,7 +68,7 @@ export function CategoryModal({
 
         const payload = {
             tenant_id: tenantId,
-            name: formData.name.replace(/\b\w/g, (char) => char.toUpperCase()),
+            name: formData.name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()),
             parent_id: formData.parent_id ? parseInt(formData.parent_id) : null,
             active: formData.active,
         };

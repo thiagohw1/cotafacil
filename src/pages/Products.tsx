@@ -351,7 +351,7 @@ export default function Products() {
 
     const payload = {
       tenant_id: tenantId,
-      name: formData.name.replace(/\b\w/g, (char) => char.toUpperCase()),
+      name: formData.name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()),
       unit: formData.unit,
       category_id: formData.category_id ? parseInt(formData.category_id) : null,
       brand: formData.brand || null,

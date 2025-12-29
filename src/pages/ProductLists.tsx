@@ -400,7 +400,7 @@ export default function ProductLists() {
 
     const payload = {
       tenant_id: tenantId,
-      name: formData.name,
+      name: formData.name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()),
       description: formData.description || null,
     };
 

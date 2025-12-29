@@ -186,7 +186,7 @@ export default function Quotes() {
         .from("quotes")
         .insert({
           tenant_id: tenantId,
-          title: newQuoteData.title,
+          title: newQuoteData.title.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()),
           deadline_at: newQuoteData.deadline_at || null,
           status: "draft",
           created_by: user?.id || null,
