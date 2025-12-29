@@ -28,6 +28,11 @@ interface Supplier {
   active: boolean;
 }
 
+// Helper for Title Case
+const toTitleCase = (str: string) => {
+  return str.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase());
+};
+
 export default function Suppliers() {
   const navigate = useNavigate();
   const { tenantId } = useTenant();
@@ -132,11 +137,11 @@ export default function Suppliers() {
 
     const payload = {
       tenant_id: tenantId,
-      name: formData.name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()),
+      name: formData.name, // Already capitalized via onChange
       cnpj: formData.cnpj || null,
-      email: formData.email,
+      email: formData.email || null, // Optional now
       phone: formData.phone || null,
-      contact_name: formData.contact_name ? formData.contact_name.replace(/(?:^|\s)\S/g, (char) => char.toUpperCase()) : null,
+      contact_name: formData.contact_name || null, // Already capitalized via onChange
       notes: formData.notes || null,
       active: formData.active,
     };
@@ -312,12 +317,12 @@ export default function Suppliers() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
+              <Label htmlFor="name">Nome <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
+                  setFormData({ ...formData, name: toTitleCase(e.target.value) })
                 }
                 placeholder="Nome do fornecedor"
                 required
@@ -348,7 +353,6 @@ export default function Suppliers() {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="email@fornecedor.com"
-                required
               />
             </div>
 
@@ -371,7 +375,7 @@ export default function Suppliers() {
               id="contact_name"
               value={formData.contact_name}
               onChange={(e) =>
-                setFormData({ ...formData, contact_name: e.target.value })
+                setFormData({ ...formData, contact_name: toTitleCase(e.target.value) })
               }
               placeholder="Nome da pessoa de contato"
             />
