@@ -11,7 +11,7 @@ import { ModalForm } from "@/components/ui/modal-form";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Package2, Settings2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Package2, Settings2, Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
@@ -74,14 +74,16 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [packagingUnits, setPackagingUnits] = useState<PackagingUnit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState("available");
   const [sortColumn, setSortColumn] = useState("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const pageSize = 20;
+  const pageSize = 50;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -111,23 +113,56 @@ export default function Products() {
   const [selectedPackagingUnit, setSelectedPackagingUnit] = useState<PackagingUnit | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLButtonElement>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (modalOpen) {
-      // Small timeout to ensure dialog is rendered and animation started
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 100);
     }
   }, [modalOpen]);
 
+  // Initial fetch and reset on filter changes
   useEffect(() => {
     if (tenantId) {
-      fetchProducts();
+      setPage(1);
+      setProducts([]); // Clear list on filter change
+      setHasMore(true);
+      fetchProducts(1, true); // Reset
       fetchCategories();
       fetchPackagingUnits();
     }
-  }, [tenantId, search, page, statusFilter, sortColumn, sortDirection]);
+  }, [tenantId, search, statusFilter, sortColumn, sortDirection]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          setPage(prev => prev + 1);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [hasMore, loading, loadingMore]);
+
+  // Fetch more when page changes (except initial which is handled above)
+  useEffect(() => {
+    if (page > 1) {
+      fetchProducts(page, false);
+    }
+  }, [page]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -138,9 +173,11 @@ export default function Products() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (currentPage: number, isReset: boolean) => {
     if (!tenantId) return;
-    setLoading(true);
+
+    if (isReset) setLoading(true);
+    else setLoadingMore(true);
 
     let query = supabase
       .from("products")
@@ -159,18 +196,7 @@ export default function Products() {
       }
     }
 
-
-
-    // Handle sorting
     if (sortColumn === 'category') {
-      // Ideally we'd sort by joined table, but Supabase simple client sorting on joined tables is tricky without specific setup or rpc.
-      // For now, let's keep it simple or fallback. 
-      // Actually, with Supabase generic query builder we can order by foreign key or try to order by the foreign resource alias.
-      // However, often simplest is to sort by category_id if name not easily supported, OR just let it happen client side if page size small? No, server side needed.
-      // Let's try explicit foreign table sorting syntax if supported: .order('name', { foreignTable: 'categories', ascending: sortDirection === 'asc' })
-      // But 'categories' is the table name, check alias. Alias in select is 'categories' (key 'category').
-      // Let's try generic sorting for main fields first. Category sorting might be ignored or default to name if complex.
-      // If user clicks category, we might default to name sort for now to avoid errors, or try:
       query = query.order('name', { foreignTable: 'categories', ascending: sortDirection === 'asc' });
     } else {
       query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
@@ -180,7 +206,7 @@ export default function Products() {
       query = query.ilike("name", `%${search}%`);
     }
 
-    const from = (page - 1) * pageSize;
+    const from = (currentPage - 1) * pageSize;
     query = query.range(from, from + pageSize - 1);
 
     const { data, count, error } = await query;
@@ -192,10 +218,19 @@ export default function Products() {
         variant: "destructive",
       });
     } else {
-      setProducts((data as any) || []);
+      const newProducts = (data as any) || [];
+      if (isReset) {
+        setProducts(newProducts);
+      } else {
+        setProducts(prev => [...prev, ...newProducts]);
+      }
+
       setTotalCount(count || 0);
+      setHasMore(newProducts.length === pageSize);
     }
-    setLoading(false);
+
+    if (isReset) setLoading(false);
+    else setLoadingMore(false);
   };
 
   const fetchCategories = async () => {
@@ -424,7 +459,7 @@ export default function Products() {
         variant: "success",
       });
       setModalOpen(false);
-      fetchProducts();
+      fetchProducts(1, true);
     }
     setSaving(false);
   };
@@ -458,7 +493,7 @@ export default function Products() {
       toast({ title: "Embalagem adicionada", variant: "success" });
       setNewPackage({ unit: "", multiplier: "1", barcode: "", is_default: false });
       fetchPackages(selectedProduct.id);
-      fetchProducts();
+      fetchProducts(1, true);
     }
   };
 
@@ -486,7 +521,7 @@ export default function Products() {
     } else {
       toast({ title: "Embalagem principal atualizada", variant: "success" });
       fetchPackages(selectedProduct.id);
-      fetchProducts();
+      fetchProducts(1, true);
     }
   };
 
@@ -636,7 +671,7 @@ export default function Products() {
     } else {
       toast({ title: "Produto excluído" });
       setDeleteOpen(false);
-      fetchProducts();
+      fetchProducts(1, true);
     }
     setSaving(false);
   };
@@ -800,7 +835,16 @@ export default function Products() {
           onSort={handleSort}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
+          hidePagination={true}
         />
+
+        {loadingMore && (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        <div ref={observerTarget} className="h-4" />
       </div>
 
       <ModalForm

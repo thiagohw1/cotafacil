@@ -33,6 +33,7 @@ interface DataTableProps<T> {
   onSort?: (column: string) => void;
   sortColumn?: string;
   sortDirection?: "asc" | "desc";
+  hidePagination?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -50,6 +51,7 @@ export function DataTable<T extends Record<string, any>>({
   onSort,
   sortColumn,
   sortDirection,
+  hidePagination,
 }: DataTableProps<T>) {
   const totalPages = Math.ceil(totalCount / pageSize);
   const showPagination = totalCount > pageSize;
@@ -128,7 +130,7 @@ export function DataTable<T extends Record<string, any>>({
         </Table>
       </div>
 
-      {showPagination && (
+      {showPagination && !hidePagination && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Mostrando {(page - 1) * pageSize + 1} a{" "}

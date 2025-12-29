@@ -115,7 +115,7 @@ function TreeNode({ category, level, children, allCategories, onEdit, onDelete, 
                                 />
 
                                 {/* Horizontal Connector (Elbow) */}
-                                <div className="absolute left-0 top-6 w-20 border-b border-slate-300 dark:border-slate-600 rounded-bl-xl h-0" />
+                                <div className="absolute left-0 top-5 w-20 border-b border-slate-300 dark:border-slate-600 rounded-bl-xl h-0" />
 
                                 <div className="pl-12">
                                     <TreeNode
