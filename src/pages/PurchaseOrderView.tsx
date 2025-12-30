@@ -259,8 +259,10 @@ export default function PurchaseOrderView() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Produto</TableHead>
+                                <TableHead>Embalagem</TableHead>
                                 <TableHead className="text-right">Quantidade</TableHead>
-                                <TableHead className="text-right">Preço Unitário</TableHead>
+                                <TableHead className="text-right">Preço Un.</TableHead>
+                                <TableHead className="text-right">Preço Emb.</TableHead>
                                 <TableHead className="text-right">Total</TableHead>
                                 {purchaseOrder.status === 'draft' && (
                                     <TableHead className="text-right">Ações</TableHead>
@@ -270,7 +272,7 @@ export default function PurchaseOrderView() {
                         <TableBody>
                             {purchaseOrder.items.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={purchaseOrder.status === 'draft' ? 5 : 4} className="text-center text-muted-foreground py-8">
+                                    <TableCell colSpan={purchaseOrder.status === 'draft' ? 7 : 6} className="text-center text-muted-foreground py-8">
                                         {purchaseOrder.status === 'draft'
                                             ? 'Nenhum item adicionado ainda. Use o formulário acima para adicionar produtos.'
                                             : 'Nenhum item neste pedido.'}
@@ -281,16 +283,31 @@ export default function PurchaseOrderView() {
                                     <TableRow key={item.id}>
                                         <TableCell>
                                             <div>
-                                                <p className="font-medium">
-                                                    {item.product?.name || `Produto #${item.product_id}`}
-                                                    {item.package && ` (${item.package.multiplier && item.package.multiplier > 1 ? `${item.package.unit}-${item.package.multiplier}` : item.package.unit})`}
+                                                <p>
+                                                    <span className="text-muted-foreground text-xs mr-1">#{item.product_id}</span>
+                                                    {item.product?.name || 'Produto indisponível'}
+                                                    <span className="text-muted-foreground ml-1">{item.product?.unit}</span>
                                                 </p>
                                                 {item.notes && (
                                                     <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
                                                 )}
                                             </div>
                                         </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm">
+                                                {item.package ? (
+                                                    item.package.multiplier && item.package.multiplier > 1
+                                                        ? `${item.package.unit}-${item.package.multiplier}`
+                                                        : item.package.unit
+                                                ) : '-'}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="text-right">{item.qty}</TableCell>
+                                        <TableCell className="text-right">
+                                            {item.package && item.package.multiplier > 1
+                                                ? formatCurrency(item.unit_price / item.package.multiplier)
+                                                : formatCurrency(item.unit_price)}
+                                        </TableCell>
                                         <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(item.total_price)}</TableCell>
                                         {purchaseOrder.status === 'draft' && (

@@ -59,6 +59,7 @@ export interface PurchaseOrderItem {
         id: number;
         name: string;
         code?: string;
+        unit?: string;
     };
     package?: {
         id: number;

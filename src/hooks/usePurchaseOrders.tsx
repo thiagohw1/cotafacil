@@ -127,7 +127,7 @@ export function usePurchaseOrder(id: number) {
                 .from('purchase_order_items')
                 .select(`
                     *,
-                    product:products(id, name),
+                    product:products(id, name, unit),
                     package:product_packages(id, unit, multiplier)
                 `)
                 .eq('po_id', id);
