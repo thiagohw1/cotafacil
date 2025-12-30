@@ -7,142 +7,120 @@ const styles = StyleSheet.create({
         padding: 30,
         fontSize: 9,
         fontFamily: 'Helvetica',
+        color: '#333',
     },
-    headerRow: {
+    // Header Grid System
+    headerContainer: {
         flexDirection: 'row',
+        paddingBottom: 5,
+        marginBottom: 5,
         justifyContent: 'space-between',
-        marginBottom: 10,
-        borderBottom: '1 solid #0066cc',
-        paddingBottom: 8,
     },
-    headerCol: {
+    column: {
         flexDirection: 'column',
+        flex: 1,
     },
-    poNumber: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#0066cc',
-    },
+    // Standardizing labels and values
     label: {
         fontSize: 8,
-        color: '#666',
-        marginTop: 2,
+        color: '#292929ff',
+        marginTop: 3,
+        textTransform: 'uppercase',
     },
     value: {
         fontSize: 9,
-        color: '#333',
         fontWeight: 'bold',
+        color: '#000',
     },
+    valueSmall: {
+        fontSize: 8,
+        color: '#333',
+    },
+
+    // Fixed missing styles
     section: {
-        marginBottom: 10,
+        marginBottom: 5,
     },
-    sectionTitle: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        marginBottom: 4,
+    tableCell: {
+        fontSize: 8,
         color: '#333',
-        borderBottom: '1 solid #eee',
-        paddingBottom: 2,
     },
-    infoGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-    infoItem: {
-        flex: 1,
-    },
+
+    // Table Styles
     table: {
-        marginTop: 10,
+        marginTop: 5,
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#f3f4f6',
-        borderBottom: '1 solid #ddd',
-        padding: 6,
+        backgroundColor: '#ccccccff',
+        borderBottom: '1 solid #ccc',
+        padding: 5,
         alignItems: 'center',
     },
     tableHeaderCell: {
         fontSize: 8,
         fontWeight: 'bold',
-        color: '#444',
+        color: '#333',
+        textTransform: 'uppercase',
     },
     tableRow: {
         flexDirection: 'row',
         borderBottom: '1 solid #eee',
-        padding: 6,
+        padding: 4,
         alignItems: 'center',
     },
     tableRowAlt: {
         flexDirection: 'row',
         borderBottom: '1 solid #eee',
         backgroundColor: '#fafafa',
-        padding: 6,
+        padding: 5,
         alignItems: 'center',
     },
-    // Columns - Adjusted widths for 6 columns
-    colProduct: { width: '30%' },
+
+    // Column Widths
+    colProduct: { width: '35%' },
     colPkg: { width: '10%' },
     colQty: { width: '10%', textAlign: 'right' },
     colPriceUn: { width: '15%', textAlign: 'right' },
     colPricePkg: { width: '15%', textAlign: 'right' },
-    colTotal: { width: '20%', textAlign: 'right' },
+    colTotal: { width: '15%', textAlign: 'right' },
 
-    tableCell: {
-        fontSize: 9,
-        color: '#333',
-    },
-    productName: {
-        fontSize: 9,
-    },
-    productMeta: {
-        fontSize: 8,
-        color: '#666',
-    },
-    totals: {
+    // Totals Section
+    totalsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
         marginTop: 15,
-        alignSelf: 'flex-end',
+    },
+    totalsBox: {
         width: '40%',
     },
     totalRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 4,
+        marginBottom: 3,
+        paddingVertical: 2,
     },
-    totalLabel: {
-        fontSize: 9,
-        fontWeight: 'bold',
-        color: '#666',
+    totalRowFinal: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 5,
+        paddingTop: 5,
+        borderTop: '1 solid #000',
     },
-    totalValue: {
-        fontSize: 9,
-        textAlign: 'right',
-    },
-    grandTotal: {
-        borderTop: '1 solid #0066cc',
-        paddingTop: 4,
-        marginTop: 4,
-    },
-    grandTotalLabel: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        color: '#0066cc',
-    },
-    grandTotalValue: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        color: '#0066cc',
-    },
+
+    // Footer
     footer: {
         position: 'absolute',
         bottom: 20,
         left: 30,
         right: 30,
         textAlign: 'center',
-        color: '#999',
-        fontSize: 7,
         borderTop: '1 solid #eee',
-        paddingTop: 8,
+        paddingTop: 10,
+    },
+    footerText: {
+        fontSize: 7,
+        color: '#999',
     },
 });
 
@@ -176,37 +154,57 @@ export function POPDFTemplate({ po }: POPDFTemplateProps) {
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-                {/* Header Compacto */}
-                <View style={styles.headerRow}>
-                    <View style={[styles.headerCol, { flex: 2 }]}>
-                        <Text style={styles.poNumber}>PO #{po.po_number}</Text>
-                        <Text style={styles.label}>
-                            Status: <Text style={{ color: '#000' }}>{getStatusLabel(po.status)}</Text>
-                        </Text>
-                    </View>
+                {/* Compact Header Grid */}
+                <View style={styles.headerContainer}>
+                    {/* Column 1: PO Info */}
+                    <View style={styles.column}>
+                        <Text style={styles.label}>Pedido de Compra</Text>
+                        <Text style={styles.value}>#{po.po_number}</Text>
 
-                    <View style={[styles.headerCol, { flex: 2 }]}>
-                        <Text style={styles.label}>Fornecedor</Text>
-                        <Text style={styles.value}>{po.supplier?.name || `Fornecedor #${po.supplier_id}`}</Text>
-                        {po.supplier?.email && <Text style={{ fontSize: 8, color: '#666' }}>{po.supplier.email}</Text>}
-                    </View>
+                        <Text style={styles.label}>Status</Text>
+                        <Text style={styles.value}>{getStatusLabel(po.status)}</Text>
 
-                    <View style={[styles.headerCol, { flex: 1, alignItems: 'flex-end' }]}>
-                        <Text style={styles.label}>Emissão</Text>
+                        <Text style={styles.label}>Data Criação</Text>
                         <Text style={styles.value}>{formatDate(po.created_at)}</Text>
                     </View>
 
-                    {po.expected_delivery_date && (
-                        <View style={[styles.headerCol, { flex: 1, alignItems: 'flex-end' }]}>
-                            <Text style={styles.label}>Entrega</Text>
-                            <Text style={styles.value}>{formatDate(po.expected_delivery_date)}</Text>
-                        </View>
-                    )}
+                    {/* Column 2: Supplier Info */}
+                    <View style={styles.column}>
+                        <Text style={styles.label}>Fornecedor</Text>
+                        <Text style={styles.value}>{po.supplier?.name || `ID #${po.supplier_id}`}</Text>
+                        {po.supplier?.email && <Text style={styles.valueSmall}>{po.supplier.email}</Text>}
+
+                        <Text style={styles.label}>Responsável (Autor)</Text>
+                        <Text style={styles.value}>{po.creator_profile?.full_name || po.creator_profile?.email || 'N/A'}</Text>
+
+                        {po.quote && (
+                            <>
+                                <Text style={styles.label}>Referência Cotação</Text>
+                                <Text style={styles.value}>#{po.quote.id} - {po.quote.title}</Text>
+                            </>
+                        )}
+                    </View>
+
+                    {/* Column 3: Summary & Logistics */}
+                    <View style={styles.column}>
+                        <Text style={styles.label}>Resumo</Text>
+                        <Text style={styles.value}>{po.items.length} Itens</Text>
+
+                        {po.expected_delivery_date && (
+                            <>
+                                <Text style={styles.label}>Entrega Esperada</Text>
+                                <Text style={styles.value}>{formatDate(po.expected_delivery_date)}</Text>
+                            </>
+                        )}
+
+                        <Text style={[styles.label, { marginTop: 10 }]}>Valor Total</Text>
+                        <Text style={[styles.value, { fontSize: 11 }]}>{formatCurrency(po.total_amount)}</Text>
+                    </View>
                 </View>
 
                 {/* Author Info */}
                 {po.creator_profile && (
-                    <View style={[styles.section, { marginBottom: 15 }]}>
+                    <View style={[styles.section, { marginBottom: 5 }]}>
                         <Text style={{ fontSize: 8, color: '#888' }}>
                             Criado por: <Text style={{ color: '#555' }}>{po.creator_profile.full_name || po.creator_profile.email}</Text>
                         </Text>
@@ -227,12 +225,12 @@ export function POPDFTemplate({ po }: POPDFTemplateProps) {
                     {po.items.map((item, index) => (
                         <View key={item.id} style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
                             <View style={styles.colProduct}>
-                                <Text style={styles.productName}>
+                                <Text style={{ fontSize: 9 }}>
                                     <Text style={{ color: '#888', fontSize: 8 }}>#{item.product_id} </Text>
                                     {item.product?.name || `Produto #${item.product_id}`}
-                                    {item.product?.unit && <Text style={{ color: '#888', fontSize: 8 }}> ({item.product.unit})</Text>}
+                                    {item.product?.unit && <Text style={{ color: '#888', fontSize: 8 }}> {item.product.unit}</Text>}
                                 </Text>
-                                {item.notes && <Text style={{ fontSize: 8, color: '#666', fontStyle: 'italic', marginTop: 1 }}>{item.notes}</Text>}
+                                {item.notes && <Text style={{ fontSize: 7, color: '#666', fontStyle: 'italic', marginTop: 1 }}>{item.notes}</Text>}
                             </View>
 
                             <View style={styles.colPkg}>
@@ -246,55 +244,53 @@ export function POPDFTemplate({ po }: POPDFTemplateProps) {
 
                             <Text style={[styles.tableCell, styles.colQty]}>{item.qty}</Text>
 
-                            <Text style={[styles.tableCell, styles.colPriceUn]}>
+                            <Text style={[styles.valueSmall, styles.colPriceUn]}>
                                 {item.package && item.package.multiplier > 1
                                     ? formatCurrency(item.unit_price / item.package.multiplier)
                                     : formatCurrency(item.unit_price)
                                 }
                             </Text>
 
-                            <Text style={[styles.tableCell, styles.colPricePkg]}>{formatCurrency(item.unit_price)}</Text>
+                            <Text style={[styles.valueSmall, styles.colPricePkg]}>{formatCurrency(item.unit_price)}</Text>
 
-                            <Text style={[styles.tableCell, styles.colTotal, { fontWeight: 'bold' }]}>{formatCurrency(item.total_price)}</Text>
+                            <Text style={[styles.valueSmall, styles.colTotal, { fontWeight: 'bold' }]}>{formatCurrency(item.total_price)}</Text>
                         </View>
                     ))}
                 </View>
 
-                {/* Totais */}
-                <View style={styles.totals}>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Subtotal</Text>
-                        <Text style={styles.totalValue}>{formatCurrency(po.subtotal)}</Text>
-                    </View>
-                    {po.tax_amount > 0 && (
+                {/* Totals Section */}
+                <View style={styles.totalsContainer}>
+                    <View style={styles.totalsBox}>
                         <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>Impostos</Text>
-                            <Text style={styles.totalValue}>{formatCurrency(po.tax_amount)}</Text>
+                            <Text style={styles.label}>Subtotal</Text>
+                            <Text style={styles.value}>{formatCurrency(po.subtotal)}</Text>
                         </View>
-                    )}
-                    {po.shipping_cost > 0 && (
                         <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>Frete</Text>
-                            <Text style={styles.totalValue}>{formatCurrency(po.shipping_cost)}</Text>
+                            <Text style={styles.label}>Impostos</Text>
+                            <Text style={styles.value}>{formatCurrency(po.tax_amount)}</Text>
                         </View>
-                    )}
-                    <View style={[styles.totalRow, styles.grandTotal]}>
-                        <Text style={styles.grandTotalLabel}>TOTAL</Text>
-                        <Text style={styles.grandTotalValue}>{formatCurrency(po.total_amount)}</Text>
+                        <View style={styles.totalRow}>
+                            <Text style={styles.label}>Frete</Text>
+                            <Text style={styles.value}>{formatCurrency(po.shipping_cost)}</Text>
+                        </View>
+                        <View style={styles.totalRowFinal}>
+                            <Text style={[styles.value, { fontSize: 10 }]}>TOTAL</Text>
+                            <Text style={[styles.value, { fontSize: 10 }]}>{formatCurrency(po.total_amount)}</Text>
+                        </View>
                     </View>
                 </View>
 
-                {/* Observações - Footer interno */}
+                {/* Notes */}
                 {po.notes && (
                     <View style={{ marginTop: 20, paddingTop: 10, borderTop: '1 solid #eee' }}>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 2 }}>Observações:</Text>
-                        <Text style={{ fontSize: 9, color: '#555' }}>{po.notes}</Text>
+                        <Text style={[styles.label, { marginBottom: 2 }]}>Observações</Text>
+                        <Text style={{ fontSize: 9, color: '#444' }}>{po.notes}</Text>
                     </View>
                 )}
 
-                {/* Footer Página */}
+                {/* Footer */}
                 <View style={styles.footer}>
-                    <Text>Gerado em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</Text>
+                    <Text style={styles.footerText}>Gerado em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</Text>
                 </View>
             </Page>
         </Document>
