@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { normalizeString } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { ModalForm } from "@/components/ui/modal-form";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Pencil, Trash2, History } from "lucide-react";
+import { Plus, Pencil, Trash2, History, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
@@ -39,15 +40,20 @@ export default function Suppliers() {
   const { toast } = useToast();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const pageSize = 10;
+  const [hasMore, setHasMore] = useState(true);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  const pageSize = 50;
+
   const [formData, setFormData] = useState({
     name: "",
     cnpj: "",
@@ -58,43 +64,109 @@ export default function Suppliers() {
     active: true,
   });
 
+  // Keyboard Shortcuts
+  useKeyboardShortcuts({
+    onNew: () => {
+      if (!modalOpen) handleCreate();
+    },
+    onSave: () => {
+      if (modalOpen) {
+        // Trigger submit by clicking the submit button in the active dialog
+        const submitBtn = document.querySelector('div[role="dialog"] button[type="submit"]') as HTMLButtonElement;
+        if (submitBtn) {
+          submitBtn.click();
+        }
+      }
+    }
+  });
+
+
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          setPage(prev => prev + 1);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [hasMore, loading, loadingMore]);
+
+  // Initial fetch and reset on filter changes
   useEffect(() => {
     if (tenantId) {
-      fetchSuppliers();
+      setPage(1);
+      setSuppliers([]); // Clear list on filter change
+      setHasMore(true);
+      fetchSuppliers(1, true); // Reset
     }
-  }, [tenantId, search, page]);
+  }, [tenantId, search]);
 
-  const fetchSuppliers = async () => {
+  // Fetch more when page changes (except initial which is handled above)
+  useEffect(() => {
+    if (page > 1) {
+      fetchSuppliers(page, false);
+    }
+  }, [page]);
+
+  const fetchSuppliers = async (currentPage: number, isReset: boolean) => {
     if (!tenantId) return;
-    setLoading(true);
 
-    let query = supabase
-      .from("suppliers")
-      .select("*", { count: "exact" })
-      .eq("tenant_id", tenantId)
-      .is("deleted_at", null)
-      .order("name");
+    if (isReset) setLoading(true);
+    else setLoadingMore(true);
 
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    try {
+      let query = supabase
+        .from("suppliers")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenantId)
+        .is('deleted_at', null)
+        .order("name");
+
+      if (search) {
+        const normalizedSearch = normalizeString(search);
+        query = query.ilike("name_clean", `%${normalizedSearch}%`);
+      }
+
+      const from = (currentPage - 1) * pageSize;
+      query = query.range(from, from + pageSize - 1);
+
+      const { data, count, error } = await query;
+
+      if (error) {
+        toast({
+          title: "Erro ao carregar fornecedores",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        const newSuppliers = data || [];
+        if (isReset) {
+          setSuppliers(newSuppliers);
+        } else {
+          setSuppliers(prev => [...prev, ...newSuppliers]);
+        }
+        setTotalCount(count || 0);
+        setHasMore(newSuppliers.length === pageSize);
+      }
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+    } finally {
+      if (isReset) setLoading(false);
+      else setLoadingMore(false);
     }
-
-    const from = (page - 1) * pageSize;
-    query = query.range(from, from + pageSize - 1);
-
-    const { data, count, error } = await query;
-
-    if (error) {
-      toast({
-        title: "Erro ao carregar fornecedores",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setSuppliers((data as any) || []);
-      setTotalCount(count || 0);
-    }
-    setLoading(false);
   };
 
   const handleCreate = () => {
@@ -170,7 +242,7 @@ export default function Suppliers() {
         title: selectedSupplier ? "Fornecedor atualizado" : "Fornecedor criado",
       });
       setModalOpen(false);
-      fetchSuppliers();
+      fetchSuppliers(1, true);
     }
     setSaving(false);
   };
@@ -200,7 +272,7 @@ export default function Suppliers() {
     } else {
       toast({ title: "Fornecedor excluído" });
       setDeleteOpen(false);
-      fetchSuppliers();
+      fetchSuppliers(1, true);
     }
     setSaving(false);
   };

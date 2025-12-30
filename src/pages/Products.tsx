@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { normalizeString } from "@/lib/utils";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,7 +204,8 @@ export default function Products() {
     }
 
     if (search) {
-      query = query.ilike("name", `%${search}%`);
+      const normalizedSearch = normalizeString(search);
+      query = query.ilike("name_clean", `%${normalizedSearch}%`);
     }
 
     const from = (currentPage - 1) * pageSize;
@@ -455,7 +457,7 @@ export default function Products() {
         });
       }
       toast({
-        title: selectedProduct ? "Produto atualizado" : "Produto criado",
+        title: selectedProduct ? "Produto atualizado" : `Produto #${productId} ${formData.name} ${formData.unit} criado com sucesso`,
         variant: "success",
       });
       setModalOpen(false);

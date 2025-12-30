@@ -162,7 +162,11 @@ export function PurchaseOrdersTable({ data, loading }: PurchaseOrdersTableProps)
                     </TableHeader>
                     <TableBody>
                         {paginatedData.map((po) => (
-                            <TableRow key={po.id} className="hover:bg-muted/50">
+                            <TableRow
+                                key={po.id}
+                                className="hover:bg-muted/50 cursor-pointer"
+                                onDoubleClick={() => navigate(`/purchase-orders/${po.id}`)}
+                            >
                                 <TableCell className="font-medium">
                                     {po.po_number}
                                 </TableCell>

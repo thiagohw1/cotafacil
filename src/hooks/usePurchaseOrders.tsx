@@ -186,6 +186,7 @@ export function usePurchaseOrder(id: number) {
             toast({
                 title: 'Status atualizado',
                 description: `PO ${purchaseOrder?.po_number} atualizado para ${newStatus}`,
+                variant: 'success',
             });
 
             await fetchPurchaseOrder();
@@ -210,6 +211,7 @@ export function usePurchaseOrder(id: number) {
             toast({
                 title: 'Purchase Order excluído',
                 description: `PO ${purchaseOrder?.po_number} foi excluído com sucesso`,
+                variant: 'success',
             });
 
             return true;

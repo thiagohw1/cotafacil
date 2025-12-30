@@ -5,7 +5,7 @@ import { QuoteSupplier, Supplier } from "@/types/quote";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, normalizeString } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 
 interface QuoteSuppliersTabProps {
@@ -40,8 +40,8 @@ export function QuoteSuppliersTab({
     );
 
     const filteredSuppliers = availableSuppliers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (s.name && normalizeString(s.name).includes(normalizeString(searchTerm))) ||
+        (s.email && normalizeString(s.email).includes(normalizeString(searchTerm)))
     );
 
     const handleSelectSupplier = (id: number) => {

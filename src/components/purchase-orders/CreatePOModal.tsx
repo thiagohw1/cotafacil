@@ -179,6 +179,7 @@ export function CreatePOModal({ open, onOpenChange, onSuccess }: CreatePOModalPr
             toast({
                 title: 'Purchase Order criado!',
                 description: `PO ${data.po_number} criado com sucesso`,
+                variant: 'success',
             });
 
             // Resetar form

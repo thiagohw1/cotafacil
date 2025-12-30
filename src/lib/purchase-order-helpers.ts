@@ -40,9 +40,11 @@ export async function createPurchaseOrder(data: {
     internal_notes?: string;
     expected_delivery_date?: string;
 }) {
+    // Obter usuário e tenant em paralelo (ou sequencial se preferir)
+    const { data: userData } = await supabase.auth.getUser();
     const tenantId = await getCurrentTenantId();
 
-    if (!tenantId) {
+    if (!tenantId || !userData.user) {
         throw new Error('Usuário não autenticado ou sem tenant');
     }
 
@@ -51,6 +53,7 @@ export async function createPurchaseOrder(data: {
         .insert({
             ...data,
             tenant_id: tenantId,
+            created_by: userData.user.id,
             po_number: '' // Será gerado automaticamente
         })
         .select()

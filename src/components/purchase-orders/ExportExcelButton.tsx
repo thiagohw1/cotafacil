@@ -74,6 +74,7 @@ export function ExportExcelButton({ purchaseOrders }: ExportExcelButtonProps) {
             toast({
                 title: 'Excel gerado com sucesso!',
                 description: `${purchaseOrders.length} Purchase Orders exportados`,
+                variant: 'success',
             });
         } catch (error) {
             console.error('Erro ao gerar Excel:', error);
