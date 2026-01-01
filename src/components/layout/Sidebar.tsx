@@ -265,7 +265,7 @@ export function SidebarContent({ onLinkClick, collapsed = false, onToggle }: Sid
                 </span>
               )}
             </div>
-            <div className="max-h-[300px] overflow-y-auto">
+            <div className="max-h-[300px] overflow-y-auto modern-scrollbar">
               {notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                   Nenhuma notificação nova
