@@ -621,12 +621,12 @@ export default function ProductLists() {
   };
 
   const columns: Column<ProductList>[] = [
-    { key: "id", header: "ID", className: "w-16 py-0" },
+    { key: "id", header: "ID", className: "w-16 py-0 hidden md:table-cell" },
     { key: "name", header: "Nome", className: "py-0" },
     {
       key: "type",
       header: "Tipo",
-      className: "w-48 py-0",
+      className: "w-48 py-0 hidden lg:table-cell",
       render: (item) => {
         const distribution = getCategoryDistribution(item);
         if (distribution.length === 0) return <span className="text-muted-foreground">-</span>;
@@ -669,13 +669,13 @@ export default function ProductLists() {
     {
       key: "description",
       header: "Descrição",
-      className: "py-0",
+      className: "py-0 hidden md:table-cell",
       render: (item) => item.description || "-",
     },
     {
       key: "created_at",
       header: "Criada em",
-      className: "py-0",
+      className: "py-0 hidden lg:table-cell",
       render: (item) =>
         format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR }),
     },
@@ -724,13 +724,13 @@ export default function ProductLists() {
     {
       key: "index",
       header: "#",
-      className: "w-12 py-0",
+      className: "w-12 py-0 hidden md:table-cell",
       render: (_, index) => index + 1,
     },
     {
       key: "category",
       header: "Categoria",
-      className: "py-0",
+      className: "py-0 hidden md:table-cell",
       render: (item) => item.product.category?.name || "-",
     },
     {
@@ -886,8 +886,8 @@ export default function ProductLists() {
                   </>
                 )}
               </h4>
-              <div className="grid grid-cols-8 gap-3 items-end">
-                <div className="relative col-span-4">
+              <div className="grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
+                <div className="relative col-span-1 md:col-span-4">
                   <Popover open={searchTerm.length > 0 && !newItem.product_id && products.length > 0}>
                     <PopoverTrigger asChild>
                       <div className="relative">
@@ -906,10 +906,10 @@ export default function ProductLists() {
                         />
                       </div>
                     </PopoverTrigger>
-                    <PopoverContent className="p-0 w-[500px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <PopoverContent className="p-0 w-[90vw] md:w-[500px] z-[100]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <div
                         ref={listRef}
-                        className="max-h-[300px] overflow-y-auto modern-scrollbar p-1"
+                        className="max-h-[300px] overflow-y-auto p-1"
                       >
                         {products.map((product, index) => (
                           <div
@@ -968,7 +968,7 @@ export default function ProductLists() {
                   )}
                 </div>
 
-                <div className="col-span-1">
+                <div className="col-span-1 md:col-span-1">
                   <Select
                     value={newItem.package_id}
                     onValueChange={(value) =>
@@ -989,7 +989,7 @@ export default function ProductLists() {
                   </Select>
                 </div>
 
-                <div className="col-span-1">
+                <div className="col-span-1 md:col-span-1">
                   <Input
                     type="number"
                     placeholder="Qtd"
@@ -1003,7 +1003,7 @@ export default function ProductLists() {
                   />
                 </div>
 
-                <div className="col-span-2 flex gap-2">
+                <div className="col-span-1 md:col-span-2 flex gap-2">
                   <Button
                     type="button"
                     className="flex-1"

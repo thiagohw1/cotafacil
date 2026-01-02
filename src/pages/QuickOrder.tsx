@@ -502,6 +502,27 @@ export default function QuickOrder() {
         doc.save(`pedido_${orderName.replace(/\s+/g, '_').toLowerCase()}.pdf`);
     };
 
+    const handleCompleteOrder = async () => {
+        if (!currentOrderId) return;
+        if (!isOnline) {
+            toast({ title: "Você está offline", description: "Conecte-se para concluir o pedido.", variant: "warning" });
+            return;
+        }
+
+        const { error } = await supabase
+            .from("quick_orders")
+            .update({ status: 'completed' })
+            .eq("id", currentOrderId);
+
+        if (error) {
+            toast({ title: "Erro ao concluir", description: error.message, variant: "destructive" });
+        } else {
+            toast({ title: "Pedido Concluído!", className: "bg-emerald-500 text-white" });
+            setSummaryOpen(false);
+            setViewMode("list");
+        }
+    };
+
     // --- Render ---
 
     const columns: Column<QuickOrderType>[] = [
@@ -518,8 +539,8 @@ export default function QuickOrder() {
             key: "status",
             header: "Status",
             render: (item) => (
-                <Badge variant={item.status === 'draft' ? 'outline' : 'default'} className="uppercase text-[10px]">
-                    {item.status}
+                <Badge variant={item.status === 'draft' ? 'outline' : 'default'} className={cn("uppercase text-[10px]", item.status === 'completed' && "bg-emerald-500 hover:bg-emerald-600")}>
+                    {item.status === 'draft' ? 'Rascunho' : (item.status === 'completed' ? 'Concluído' : item.status)}
                 </Badge>
             )
         },
@@ -687,8 +708,8 @@ export default function QuickOrder() {
                         <Button variant="outline" className="w-full" onClick={handleGeneratePDF}>
                             <FileText className="mr-2 h-4 w-4" /> Baixar PDF
                         </Button>
-                        <Button className="w-full" onClick={() => setSummaryOpen(false)}>
-                            <Check className="mr-2 h-4 w-4" /> Fechar Resumo
+                        <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleCompleteOrder}>
+                            <Check className="mr-2 h-4 w-4" /> Concluir Pedido
                         </Button>
                     </SheetFooter>
                 </SheetContent>
