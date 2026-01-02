@@ -21,7 +21,8 @@ import {
   Laptop,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
+  Zap
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ const navigation = [
   { name: "Histórico de Preços", href: "/price-history", icon: TrendingUp },
   { name: "Relatórios", href: "/reports", icon: BarChart3 },
   { name: "Pedidos de Compra", href: "/purchase-orders", icon: ShoppingCart },
+  { name: "Pedido Rápido", href: "/quick-order", icon: Zap },
   { name: "Permissões", href: "/permissions", icon: Shield },
   { name: "Configurações", href: "/settings", icon: Settings },
 

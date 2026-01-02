@@ -47,6 +47,178 @@ export type Database = {
                 }
                 Relationships: []
             }
+            product_packages: {
+                Row: {
+                    barcode: string | null
+                    id: number
+                    is_default: boolean
+                    multiplier: number
+                    product_id: number
+                    unit: string
+                }
+                Insert: {
+                    barcode?: string | null
+                    id?: number
+                    is_default?: boolean
+                    multiplier?: number
+                    product_id: number
+                    unit: string
+                }
+                Update: {
+                    barcode?: string | null
+                    id?: number
+                    is_default?: boolean
+                    multiplier?: number
+                    product_id?: number
+                    unit?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "product_packages_product_id_fkey"
+                        columns: ["product_id"]
+                        isOneToOne: false
+                        referencedRelation: "products"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            purchase_orders: {
+                Row: {
+                    actual_delivery_date: string | null
+                    created_at: string
+                    created_by: string | null
+                    deleted_at: string | null
+                    expected_delivery_date: string | null
+                    id: number
+                    internal_notes: string | null
+                    notes: string | null
+                    po_number: string
+                    quote_id: number | null
+                    shipping_cost: number
+                    status: "draft" | "sent" | "confirmed" | "delivered" | "cancelled"
+                    subtotal: number
+                    supplier_id: number
+                    tax_amount: number
+                    tenant_id: number
+                    total_amount: number
+                    updated_at: string
+                    updated_by: string | null
+                }
+                Insert: {
+                    actual_delivery_date?: string | null
+                    created_at?: string
+                    created_by?: string | null
+                    deleted_at?: string | null
+                    expected_delivery_date?: string | null
+                    id?: number
+                    internal_notes?: string | null
+                    notes?: string | null
+                    po_number?: string
+                    quote_id?: number | null
+                    shipping_cost?: number
+                    status?: "draft" | "sent" | "confirmed" | "delivered" | "cancelled"
+                    subtotal?: number
+                    supplier_id: number
+                    tax_amount?: number
+                    tenant_id: number
+                    total_amount?: number
+                    updated_at?: string
+                    updated_by?: string | null
+                }
+                Update: {
+                    actual_delivery_date?: string | null
+                    created_at?: string
+                    created_by?: string | null
+                    deleted_at?: string | null
+                    expected_delivery_date?: string | null
+                    id?: number
+                    internal_notes?: string | null
+                    notes?: string | null
+                    po_number?: string
+                    quote_id?: number | null
+                    shipping_cost?: number
+                    status?: "draft" | "sent" | "confirmed" | "delivered" | "cancelled"
+                    subtotal?: number
+                    supplier_id?: number
+                    tax_amount?: number
+                    tenant_id?: number
+                    total_amount?: number
+                    updated_at?: string
+                    updated_by?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "purchase_orders_supplier_id_fkey"
+                        columns: ["supplier_id"]
+                        isOneToOne: false
+                        referencedRelation: "suppliers"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            purchase_order_items: {
+                Row: {
+                    created_at: string
+                    delivery_days: number | null
+                    id: number
+                    notes: string | null
+                    package_id: number | null
+                    po_id: number
+                    product_id: number
+                    qty: number
+                    quote_item_id: number | null
+                    quote_response_id: number | null
+                    total_price: number
+                    unit_price: number
+                    updated_at: string
+                }
+                Insert: {
+                    created_at?: string
+                    delivery_days?: number | null
+                    id?: number
+                    notes?: string | null
+                    package_id?: number | null
+                    po_id: number
+                    product_id: number
+                    qty: number
+                    quote_item_id?: number | null
+                    quote_response_id?: number | null
+                    total_price: number
+                    unit_price: number
+                    updated_at?: string
+                }
+                Update: {
+                    created_at?: string
+                    delivery_days?: number | null
+                    id?: number
+                    notes?: string | null
+                    package_id?: number | null
+                    po_id?: number
+                    product_id?: number
+                    qty?: number
+                    quote_item_id?: number | null
+                    quote_response_id?: number | null
+                    total_price?: number
+                    unit_price?: number
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "purchase_order_items_po_id_fkey"
+                        columns: ["po_id"]
+                        isOneToOne: false
+                        referencedRelation: "purchase_orders"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "purchase_order_items_product_id_fkey"
+                        columns: ["product_id"]
+                        isOneToOne: false
+                        referencedRelation: "products"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             purchase_history: {
                 Row: {
                     created_at: string | null

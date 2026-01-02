@@ -27,6 +27,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PurchaseOrderView from "./pages/PurchaseOrderView";
 import PODashboard from "./pages/PODashboard";
+import QuickOrder from "./pages/QuickOrder";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import Notifications from "./pages/Notifications";
 
@@ -62,6 +63,7 @@ const App = () => (
                   <Route path="/purchase-orders" element={<PurchaseOrders />} />
                   <Route path="/purchase-orders/dashboard" element={<PODashboard />} />
                   <Route path="/purchase-orders/:id" element={<PurchaseOrderView />} />
+                  <Route path="/quick-order" element={<QuickOrder />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/notifications" element={<Notifications />} />
