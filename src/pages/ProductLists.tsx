@@ -118,19 +118,13 @@ export default function ProductLists() {
     }
   }, [tenantId, search, page]);
 
-  // Debounced search effect
+  // Clear results when search term changes (wait for Enter to search)
   useEffect(() => {
     setProducts([]);
     setSelectedIndex(-1);
+  }, [searchTerm]);
 
-    if (!searchTerm) return;
 
-    const timer = setTimeout(() => {
-      fetchProducts(searchTerm);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm, tenantId, categories]);
 
   // Auto-select default package when product changes
   useEffect(() => {
@@ -199,10 +193,12 @@ export default function ProductLists() {
       }
 
       // Otherwise, select from search results
-      if (!products.length) return;
-      const index = selectedIndex >= 0 ? selectedIndex : 0;
-      if (products[index]) {
-        selectProduct(products[index]);
+      if (products.length > 0 && selectedIndex >= 0) {
+        if (products[selectedIndex]) {
+          selectProduct(products[selectedIndex]);
+        }
+      } else {
+        fetchProducts(searchTerm);
       }
       return;
     }
@@ -268,9 +264,6 @@ export default function ProductLists() {
   const fetchProducts = async (term: string) => {
     if (!tenantId) return;
 
-    // Smart category search logic
-    const isCategorySearch = term.trim().startsWith("//");
-
     let query = supabase
       .from("products")
       .select("id, name, product_packages(id, unit, multiplier, is_default), category:categories!inner(name)")
@@ -280,42 +273,10 @@ export default function ProductLists() {
       .order("name")
       .limit(50);
 
-    if (isCategorySearch) {
-      const categoryTerm = term.trim().substring(2).toLowerCase();
-
-      // Define aliases
-      const aliases: Record<string, string[]> = {
-        "flv": ["frutas", "legumes", "verduras", "hortifruti", "flv"],
-        "carnes": ["carnes", "bovinos", "suínos", "aves", "açougue", "suinos", "acougue"],
-      };
-
-      const targetNames = aliases[categoryTerm] || [categoryTerm];
-
-      // 1. Find root categories matching the term (or aliases)
-      const matchingRoots = categories.filter(c =>
-        targetNames.some(name => c.name.toLowerCase().includes(name))
-      );
-
-      // 2. Collect all descendant IDs for these roots
-      const validCategoryIds = new Set<number>();
-
-      const addCategoryAndChildren = (parentId: number) => {
-        validCategoryIds.add(parentId);
-        // Find immediate children
-        const children = categories.filter(c => c.parent_id === parentId);
-        children.forEach(child => addCategoryAndChildren(child.id));
-      };
-
-      matchingRoots.forEach(root => addCategoryAndChildren(root.id));
-
-      if (validCategoryIds.size > 0) {
-        query = query.in("category_id", Array.from(validCategoryIds));
-      } else {
-        // No matching category found, ensure no results
-        query = query.eq("id", -1);
-      }
-    } else if (term) {
-      query = query.ilike("name", `%${term}%`);
+    if (term) {
+      // Normalize term for accent-insensitive search (requires name_search column)
+      const sanitized = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      query = query.ilike("name_search", `%${sanitized}%`);
     }
 
     const { data } = await query;
@@ -756,7 +717,7 @@ export default function ProductLists() {
     {
       key: "qty",
       header: "Qtde Padrão",
-      className: "py-0",
+      className: "py-0 hidden md:table-cell",
       render: (item) => item.default_qty || "-",
     },
     {
@@ -909,7 +870,7 @@ export default function ProductLists() {
                     <PopoverContent className="p-0 w-[90vw] md:w-[500px] z-[100]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <div
                         ref={listRef}
-                        className="max-h-[300px] overflow-y-auto p-1"
+                        className="max-h-[300px] overflow-y-auto p-1 touch-pan-y"
                       >
                         {products.map((product, index) => (
                           <div
@@ -919,7 +880,6 @@ export default function ProductLists() {
                               selectedIndex === index ? "bg-accent text-accent-foreground" : "hover:bg-muted"
                             )}
                             onClick={() => selectProduct(product)}
-                            onMouseEnter={() => setSelectedIndex(index)}
                           >
                             <Check
                               className={cn(

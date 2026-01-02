@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Plus, Minus, Package, Trash2, FileText, ArrowLeft, X, Check, Truck, Loader2 } from "lucide-react";
+import { Search, Plus, Minus, Package, Trash2, FileText, ArrowLeft, X, Check, Truck, Loader2, MoreVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -41,6 +41,12 @@ import {
     CommandItem,
     CommandList,
 } from "@/components/ui/command";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
@@ -148,7 +154,6 @@ export default function QuickOrder() {
     useEffect(() => {
         if (tenantId) {
             fetchSuppliers();
-            fetchInitialProducts();
         }
     }, [tenantId]);
 
@@ -205,16 +210,7 @@ export default function QuickOrder() {
         if (data) setSuppliers(data);
     };
 
-    const fetchInitialProducts = async () => {
-        if (!navigator.onLine) return;
-        const { data } = await supabase
-            .from("products")
-            .select("id, name, brand, unit, product_packages(id, unit, multiplier, is_default)")
-            .eq("tenant_id", tenantId)
-            .eq("active", true)
-            .limit(50);
-        if (data) setProducts(data as any);
-    };
+
 
     const loadOrderItems = async (orderId: string) => {
         setLoadingItems(true);
@@ -629,15 +625,46 @@ export default function QuickOrder() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setSearchModalOpen(true)}>
-                        <Search className="h-5 w-5" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => setImportModalOpen(true)}>
-                        <FileText className="h-5 w-5" />
-                    </Button>
-                    <Button variant="outline" size="icon" className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100" onClick={() => setSummaryOpen(true)}>
-                        <Check className="h-5 w-5" />
-                    </Button>
+                    {/* Desktop Actions */}
+                    <div className="hidden md:flex gap-2">
+                        <Button variant="outline" onClick={() => setSearchModalOpen(true)}>
+                            <Search className="h-4 w-4 mr-2" />
+                            Buscar Produtos
+                        </Button>
+                        <Button variant="outline" onClick={() => setImportModalOpen(true)}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Importar Lista
+                        </Button>
+                        <Button variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100" onClick={() => setSummaryOpen(true)}>
+                            <Check className="h-4 w-4 mr-2" />
+                            Resumo
+                        </Button>
+                    </div>
+
+                    {/* Mobile Actions (Dropdown) */}
+                    <div className="md:hidden">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setSearchModalOpen(true)}>
+                                    <Search className="h-4 w-4 mr-2" />
+                                    Buscar Produtos
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setImportModalOpen(true)}>
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Importar Lista
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setSummaryOpen(true)}>
+                                    <Check className="h-4 w-4 mr-2 text-emerald-600" />
+                                    <span className="text-emerald-600">Resumo</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </div>
 
@@ -665,12 +692,12 @@ export default function QuickOrder() {
 
             {/* Summary Sheet */}
             <Sheet open={summaryOpen} onOpenChange={setSummaryOpen}>
-                <SheetContent side="bottom" className="h-[90vh]">
+                <SheetContent side="bottom" className="h-[90vh] flex flex-col">
                     <SheetHeader>
                         <SheetTitle>Resumo - {orderName}</SheetTitle>
                         <SheetDescription>Confira itens e fornecedores.</SheetDescription>
                     </SheetHeader>
-                    <div className="py-4 overflow-y-auto max-h-[60vh] space-y-6">
+                    <div className="py-4 overflow-y-auto max-h-[60vh] space-y-6 flex-1">
                         {/* Grouping Logic for Display */}
                         {Array.from(
                             orderItems.reduce((map, item) => {
@@ -704,7 +731,7 @@ export default function QuickOrder() {
                             )
                         })}
                     </div>
-                    <SheetFooter className="flex-col gap-2 mt-auto pb-6">
+                    <SheetFooter className="flex-col gap-2 mt-auto pb-8">
                         <Button variant="outline" className="w-full" onClick={handleGeneratePDF}>
                             <FileText className="mr-2 h-4 w-4" /> Baixar PDF
                         </Button>
@@ -725,12 +752,13 @@ export default function QuickOrder() {
                     setSearchModalOpen(false);
                 }}
                 onSearch={async (term) => {
+                    const sanitized = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
                     const { data } = await supabase
                         .from("products")
                         .select("id, name, brand, unit, product_packages(id, unit, multiplier, is_default)")
                         .eq("tenant_id", tenantId)
                         .eq("active", true)
-                        .ilike("name", `%${term}%`)
+                        .ilike("name_search", `%${sanitized}%`)
                         .limit(20);
                     if (data) setProducts(data as any);
                 }}
@@ -945,23 +973,26 @@ function ProductSearchModal({ open, onOpenChange, products, onAdd, onSearch }: {
     onSearch: (term: string) => void;
 }) {
     const [term, setTerm] = useState("");
-    const timerRef = useRef<NodeJS.Timeout>();
 
-    const handleSearch = (val: string) => {
-        setTerm(val);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => {
-            onSearch(val);
-        }, 500);
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            onSearch(term);
+        }
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="p-0 gap-0 top-[20%] translate-y-0">
-                <Command className="rounded-lg border shadow-md">
-                    <CommandInput placeholder="Buscar produtos..." value={term} onValueChange={handleSearch} />
+                <DialogTitle className="sr-only">Buscar Produtos</DialogTitle>
+                <Command className="rounded-lg border shadow-md" shouldFilter={false}>
+                    <CommandInput
+                        placeholder="Buscar produtos (Enter)..."
+                        value={term}
+                        onValueChange={setTerm}
+                        onKeyDown={handleKeyDown}
+                    />
                     <CommandList>
-                        <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
                         <CommandGroup heading="Sugestões">
                             {products.map(product => (
                                 <CommandItem key={product.id} onSelect={() => onAdd(product)}>
