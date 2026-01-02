@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
+      workbox: {
+        globIgnores: ['**/index-*.js'],
+      },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
       devOptions: {
