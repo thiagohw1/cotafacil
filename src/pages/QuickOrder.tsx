@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Plus, Minus, Package, Trash2, FileText, ArrowLeft, X, Check, Truck, Loader2, MoreVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -111,6 +112,8 @@ interface ProductList {
 
 export default function QuickOrder() {
     const { tenantId } = useTenant();
+    const { id } = useParams();
+    const navigate = useNavigate();
     const { toast } = useToast();
     const [viewMode, setViewMode] = useState<"list" | "create">("list");
 
@@ -158,10 +161,16 @@ export default function QuickOrder() {
     }, [tenantId]);
 
     useEffect(() => {
-        if (tenantId && viewMode === "list") {
+        if (tenantId && !id) {
+            setViewMode("list");
+            setCurrentOrderId(null);
             fetchOrders();
+        } else if (tenantId && id) {
+            setViewMode("create");
+            setCurrentOrderId(id);
+            fetchOrderHeader(id);
         }
-    }, [tenantId, viewMode]);
+    }, [tenantId, id]);
 
     // Load Items & Queue
     useEffect(() => {
@@ -197,6 +206,17 @@ export default function QuickOrder() {
             setOrders(data as any);
         }
         setLoadingOrders(false);
+    };
+
+    const fetchOrderHeader = async (orderId: string) => {
+        const { data, error } = await supabase
+            .from("quick_orders")
+            .select("name, status")
+            .eq("id", orderId)
+            .single();
+        if (data) {
+            setOrderName(data.name || "Pedido");
+        }
     };
 
     const fetchSuppliers = async () => {
@@ -335,8 +355,9 @@ export default function QuickOrder() {
 
             setCurrentOrderId(data.id);
             setOrderItems([]);
-            setViewMode("create");
+            // setViewMode("create"); // Controlled by URL now
             setNewOrderModalTitleOpen(false);
+            navigate(`/quick-order/${data.id}`);
             toast({ title: "Pedido criado!", variant: "success" });
         } catch (err: any) {
             toast({ title: "Erro ao criar pedido", description: err.message, variant: "destructive" });
@@ -346,9 +367,10 @@ export default function QuickOrder() {
     };
 
     const handleOpenExistingOrder = (order: QuickOrderType) => {
-        setCurrentOrderId(order.id);
-        setOrderName(order.name || "Pedido");
-        setViewMode("create");
+        // setCurrentOrderId(order.id);
+        // setOrderName(order.name || "Pedido");
+        // setViewMode("create");
+        navigate(`/quick-order/${order.id}`);
     };
 
     const updateOrderHeaderTotals = async (orderId: string, items: OrderItem[]) => {
@@ -515,7 +537,9 @@ export default function QuickOrder() {
         } else {
             toast({ title: "Pedido Concluído!", className: "bg-emerald-500 text-white" });
             setSummaryOpen(false);
-            setViewMode("list");
+            toast({ title: "Pedido Concluído!", className: "bg-emerald-500 text-white" });
+            setSummaryOpen(false);
+            navigate("/quick-order");
         }
     };
 
@@ -608,7 +632,7 @@ export default function QuickOrder() {
             {/* Header */}
             <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => setViewMode("list")}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate("/quick-order")}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex flex-col">
@@ -635,7 +659,7 @@ export default function QuickOrder() {
                             <FileText className="h-4 w-4 mr-2" />
                             Importar Lista
                         </Button>
-                        <Button variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100" onClick={() => setSummaryOpen(true)}>
+                        <Button variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900" onClick={() => setSummaryOpen(true)}>
                             <Check className="h-4 w-4 mr-2" />
                             Resumo
                         </Button>

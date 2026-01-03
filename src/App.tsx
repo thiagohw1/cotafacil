@@ -64,6 +64,7 @@ const App = () => (
                   <Route path="/purchase-orders/dashboard" element={<PODashboard />} />
                   <Route path="/purchase-orders/:id" element={<PurchaseOrderView />} />
                   <Route path="/quick-order" element={<QuickOrder />} />
+                  <Route path="/quick-order/:id" element={<QuickOrder />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/notifications" element={<Notifications />} />
