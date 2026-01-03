@@ -504,20 +504,42 @@ export default function QuickOrder() {
 
         groups.forEach((group) => {
             doc.setFontSize(12); doc.setFillColor(240, 240, 240); doc.rect(14, yPos - 5, 182, 8, 'F');
-            doc.text(group.supplierName, 16, yPos); yPos += 5;
+            const totalValue = group.items.reduce((acc, i) => acc + i.total_price, 0);
+            const totalItems = group.items.length;
+            doc.text(`${group.supplierName} - Itens: ${totalItems} - Total: R$ ${totalValue.toFixed(2)}`, 16, yPos); yPos += 5;
 
-            const tableBody = group.items.map(item => [
-                item.product.name,
-                item.quantity.toString(),
-                item.selectedPackage ? `${item.selectedPackage.unit} (x${item.selectedPackage.multiplier})` : (item.product.unit || "UN")
-            ]);
+            const tableBody = group.items.map(item => {
+                const pkgLabel = item.selectedPackage ? `${item.selectedPackage.unit}-${item.selectedPackage.multiplier}` : (item.product.unit || "UN");
+                const pkgCost = item.unit_price * (item.selectedPackage?.multiplier || 1);
+
+                return [
+                    item.product.id.toString(),
+                    item.product.name,
+                    item.product.unit || "UN",
+                    item.quantity.toString(),
+                    pkgLabel,
+                    `R$ ${item.unit_price.toFixed(2)}`,
+                    `R$ ${pkgCost.toFixed(2)}`,
+                    `R$ ${item.total_price.toFixed(2)}`
+                ];
+            });
 
             autoTable(doc, {
-                startY: yPos, head: [['Produto', 'Qtd', 'Emb']], body: tableBody,
-                theme: 'grid', headStyles: { fillColor: [66, 66, 66] }, margin: { top: yPos },
+                startY: yPos,
+                head: [['ID', 'Descrição', 'Un.', 'Qtd', 'Emb.', 'Custo Un.', 'Custo Emb.', 'Total']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: { fillColor: [66, 66, 66], fontSize: 8 },
+                bodyStyles: { fontSize: 8 },
+                margin: { top: yPos },
             });
             // @ts-ignore
-            yPos = doc.lastAutoTable.finalY + 15;
+            yPos = doc.lastAutoTable.finalY + 10;
+
+            // Group Footer
+            doc.setFontSize(10);
+            doc.text(`Total Fornecedor: R$ ${totalValue.toFixed(2)}`, 14, yPos);
+            yPos += 10;
         });
         doc.save(`pedido_${orderName.replace(/\s+/g, '_').toLowerCase()}.pdf`);
     };
@@ -759,24 +781,48 @@ export default function QuickOrder() {
                             }, new Map<string | number, OrderItem[]>()).entries()
                         ).map(([key, items]) => {
                             const supplierName = key === "null" ? "Sem Fornecedor" : suppliers.find(s => s.id === key)?.name;
+                            const totalSupplierValue = items.reduce((acc, i) => acc + i.total_price, 0);
+
                             return (
                                 <div key={key} className="space-y-2">
-                                    <div className="flex items-center gap-2 font-semibold text-sm bg-muted p-2 rounded">
-                                        <span>{supplierName}</span>
-                                        <Badge variant="secondary" className="ml-auto">{items.length}</Badge>
+                                    <div className="flex items-center justify-between gap-2 font-semibold text-sm bg-muted p-2 rounded">
+                                        <div className="flex flex-col">
+                                            <span>{supplierName}</span>
+                                            <span className="text-xs font-normal text-muted-foreground">{items.length} itens</span>
+                                        </div>
+                                        <Badge variant="outline" className="ml-auto bg-background">
+                                            R$ {totalSupplierValue.toFixed(2)}
+                                        </Badge>
                                     </div>
                                     <div className="pl-4 space-y-2">
-                                        {items.map(item => (
-                                            <div key={item.id} className="flex justify-between text-sm py-1 border-b last:border-0 border-border/50">
-                                                <span className="truncate flex-1 pr-2">{item.product.name}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span>{item.quantity}</span>
-                                                    <span className="text-xs bg-muted px-1 rounded">
-                                                        {item.selectedPackage ? item.selectedPackage.unit : (item.product.unit || "UN")}
-                                                    </span>
+                                        {items.map(item => {
+                                            const pkgName = item.selectedPackage ? `${item.selectedPackage.unit}-${item.selectedPackage.multiplier}` : (item.product.unit || "UN");
+                                            return (
+                                                <div key={item.id} className="flex justify-between text-sm py-1 border-b last:border-0 border-border/50">
+                                                    <div className="flex-1 pr-2">
+                                                        <div className="font-bold flex items-center gap-2">
+                                                            {item.product.name}
+                                                            <span className="text-[10px] font-normal text-muted-foreground bg-muted px-1 rounded border">
+                                                                {item.product.unit || "UN"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[11px] text-muted-foreground flex flex-col gap-0.5 mt-0.5">
+                                                            <span>
+                                                                Qtde: {item.quantity} x <span className="font-medium text-foreground">{pkgName}</span>
+                                                            </span>
+                                                            <span className="flex gap-2">
+                                                                <span>Unit: R$ {item.unit_price.toFixed(2)}</span>
+                                                                <span>Emb: R$ {(item.unit_price * (item.selectedPackage?.multiplier || 1)).toFixed(2)}</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col items-end justify-center">
+                                                        <span className="text-[10px] text-muted-foreground font-semibold">TOTAL</span>
+                                                        <span className="font-bold text-emerald-600">R$ {item.total_price.toFixed(2)}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )
