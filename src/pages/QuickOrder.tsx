@@ -854,8 +854,10 @@ function CartItemCard({ item, suppliers, onUpdate, onRemove }: { item: OrderItem
         ? `${item.selectedPackage.unit}-${item.selectedPackage.multiplier}`
         : (item.product.unit || "UN");
 
+    const isComplete = item.quantity > 0 && item.unit_price > 0 && !!item.supplier_id;
+
     return (
-        <Card className="relative overflow-visible">
+        <Card className={cn("relative overflow-visible border transition-colors", isComplete ? "border-emerald-500 bg-emerald-50/10" : "border-amber-400 bg-amber-50/10")}>
             <Button
                 variant="ghost"
                 size="icon"
@@ -869,14 +871,13 @@ function CartItemCard({ item, suppliers, onUpdate, onRemove }: { item: OrderItem
                 <div className="pr-6 mb-3 flex items-start justify-between gap-2">
                     <div className="flex flex-col gap-1">
                         <div className="flex flex-wrap items-baseline gap-2">
-                            <h3 className="font-medium text-sm">{item.product.name}</h3>
+                            <h3 className="font-bold text-base">{item.product.name} <span className="text-xs text-muted-foreground bg-muted px-1 rounded border">{item.product.unit}</span></h3>
                             <div className="flex items-center text-xs gap-1">
-                                <span className="text-muted-foreground bg-muted px-1 rounded">{item.product.unit || "UN"}</span>
                                 {/* Packaging Trigger */}
                                 <div className="relative inline-block">
                                     {!openPkg ? (
                                         <span
-                                            className="cursor-pointer font-bold text-emerald-700 bg-emerald-50 px-1 rounded hover:underline hover:bg-emerald-100"
+                                            className="cursor-pointer font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-950 dark:hover:bg-emerald-900 px-1 rounded hover:underline"
                                             onClick={() => { setOpenPkg(true); setOpenSupp(false); }}
                                         >
                                             {pkgLabel}
@@ -947,23 +948,23 @@ function CartItemCard({ item, suppliers, onUpdate, onRemove }: { item: OrderItem
                 {/* Prices Row */}
                 <div className="grid grid-cols-3 gap-2 items-end mb-3">
                     <div>
-                        <Label className="text-[10px] text-muted-foreground">Custo Un.</Label>
-                        <div className="h-7 flex items-center text-xs text-muted-foreground px-2 bg-muted/50 rounded border border-transparent">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Custo Un.</Label>
+                        <div className="h-7 flex items-center text-xs font-medium px-2 bg-secondary/50 rounded border border-border text-foreground">
                             {item.unit_price > 0 ? `R$ ${item.unit_price.toFixed(2)}` : "-"}
                         </div>
                     </div>
                     <div>
-                        <Label className="text-[10px] text-muted-foreground">Preço (Emb)</Label>
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Preço (Emb)</Label>
                         <CurrencyInput
-                            className="h-7 text-xs"
+                            className="h-7 text-xs font-medium"
                             placeholder="0.00"
                             value={packagePrice === 0 ? "" : packagePrice.toString()}
                             onChange={(val) => handlePackagePriceChange(val)}
                         />
                     </div>
                     <div>
-                        <Label className="text-[10px] text-muted-foreground">Total</Label>
-                        <div className="h-7 flex items-center text-xs font-semibold px-2 bg-muted/50 rounded border border-transparent">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Total</Label>
+                        <div className="h-7 flex items-center text-xs font-bold px-2 bg-secondary rounded border border-border text-foreground">
                             {totalPrice > 0 ? `R$ ${totalPrice.toFixed(2)}` : "-"}
                         </div>
                     </div>
