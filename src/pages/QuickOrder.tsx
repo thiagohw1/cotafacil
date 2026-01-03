@@ -905,7 +905,7 @@ function CartItemCard({ item, suppliers, onUpdate, onRemove }: { item: OrderItem
     const isComplete = item.quantity > 0 && item.unit_price > 0 && !!item.supplier_id;
 
     return (
-        <Card className={cn("relative overflow-visible border transition-colors", isComplete ? "border-emerald-500 bg-emerald-50/10" : "border-amber-400 bg-amber-50/10")}>
+        <Card className={cn("relative overflow-visible border transition-colors", isComplete ? "border-emerald-500" : "border-amber-400")}>
             <Button
                 variant="ghost"
                 size="icon"
