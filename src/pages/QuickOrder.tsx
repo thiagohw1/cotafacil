@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Plus, Minus, Package, Trash2, FileText, ArrowLeft, X, Check, Truck, Loader2, MoreVertical } from "lucide-react";
+import { Search, Plus, Minus, Package, Trash2, FileText, ArrowLeft, X, Check, Truck, Loader2, MoreVertical, ArrowDownAZ, ArrowUpAZ } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
     Sheet,
     SheetContent,
@@ -116,6 +117,7 @@ export default function QuickOrder() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [viewMode, setViewMode] = useState<"list" | "create">("list");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("asc");
 
     // --- List Mode State ---
     const [orders, setOrders] = useState<QuickOrderType[]>([]);
@@ -391,7 +393,7 @@ export default function QuickOrder() {
         return unitPrice * multiplier * qty; // unitPrice is BASE price
     };
 
-    const addItemToOrder = async (product: Product, qty: number = 1, pkg: ProductPackage | null = null) => {
+    const addItemToOrder = async (product: Product, qty: number = 0, pkg: ProductPackage | null = null) => {
         if (!currentOrderId) return;
 
         const existing = orderItems.find(i => i.product_id === product.id);
@@ -627,10 +629,16 @@ export default function QuickOrder() {
         )
     }
 
+    const sortedItems = [...orderItems].sort((a, b) => {
+        if (sortOrder === 'asc') return a.product.name.localeCompare(b.product.name);
+        if (sortOrder === 'desc') return b.product.name.localeCompare(a.product.name);
+        return 0;
+    });
+
     return (
-        <div className="pb-20 space-y-4">
+        <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-background border-b px-4 py-3 flex items-center justify-between shadow-sm">
+            <div className="flex-none bg-background border-b px-4 py-3 flex items-center justify-between shadow-sm z-40">
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => navigate("/quick-order")}>
                         <ArrowLeft className="h-5 w-5" />
@@ -659,6 +667,17 @@ export default function QuickOrder() {
                             <FileText className="h-4 w-4 mr-2" />
                             Importar Lista
                         </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setSortOrder(prev => {
+                                if (prev === 'none') return 'asc';
+                                if (prev === 'asc') return 'desc';
+                                return 'none';
+                            })}
+                            className={cn(sortOrder !== 'none' && "bg-neutral-100 dark:bg-neutral-800")}
+                        >
+                            {sortOrder === 'desc' ? <ArrowUpAZ className="h-4 w-4" /> : <ArrowDownAZ className="h-4 w-4" />}
+                        </Button>
                         <Button variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900" onClick={() => setSummaryOpen(true)}>
                             <Check className="h-4 w-4 mr-2" />
                             Resumo
@@ -682,6 +701,14 @@ export default function QuickOrder() {
                                     <FileText className="h-4 w-4 mr-2" />
                                     Importar Lista
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setSortOrder(prev => {
+                                    if (prev === 'none') return 'asc';
+                                    if (prev === 'asc') return 'desc';
+                                    return 'none';
+                                })}>
+                                    {sortOrder === 'desc' ? <ArrowUpAZ className="h-4 w-4 mr-2" /> : <ArrowDownAZ className="h-4 w-4 mr-2" />}
+                                    {sortOrder === 'none' ? 'Ordenar A-Z' : (sortOrder === 'asc' ? 'Ordenar Z-A' : 'Remover Ordenação')}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setSummaryOpen(true)}>
                                     <Check className="h-4 w-4 mr-2 text-emerald-600" />
                                     <span className="text-emerald-600">Resumo</span>
@@ -692,16 +719,16 @@ export default function QuickOrder() {
                 </div>
             </div>
 
-            <div className="container mx-auto p-4 space-y-3">
-                {orderItems.length === 0 && !loadingItems && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
+                {sortedItems.length === 0 && !loadingItems && (
                     <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-4">
-                        <ShoppingBagIcon size={48} className="opacity-20" />
+                        <Package size={48} className="opacity-20" />
                         <p>Carrinho vazio. Adicione produtos ou importe uma lista.</p>
                     </div>
                 )}
 
                 {/* Items */}
-                {orderItems.map(item => (
+                {sortedItems.map(item => (
                     <CartItemCard
                         key={item.id}
                         item={item}
@@ -794,7 +821,7 @@ export default function QuickOrder() {
                 tenantId={tenantId}
                 onImport={(items) => {
                     items.forEach(item => {
-                        addItemToOrder(item.product, item.qty, item.pkg);
+                        addItemToOrder(item.product, 0, item.pkg);
                     });
                     setImportModalOpen(false);
                 }}
@@ -927,12 +954,11 @@ function CartItemCard({ item, suppliers, onUpdate, onRemove }: { item: OrderItem
                     </div>
                     <div>
                         <Label className="text-[10px] text-muted-foreground">Preço (Emb)</Label>
-                        <Input
+                        <CurrencyInput
                             className="h-7 text-xs"
-                            type="number"
                             placeholder="0.00"
-                            value={packagePrice === 0 ? "" : packagePrice}
-                            onChange={(e) => handlePackagePriceChange(e.target.value)}
+                            value={packagePrice === 0 ? "" : packagePrice.toString()}
+                            onChange={(val) => handlePackagePriceChange(val)}
                         />
                     </div>
                     <div>
