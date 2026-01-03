@@ -666,11 +666,13 @@ export default function QuickOrder() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex flex-col">
-                        <h1 className="text-lg font-bold leading-tight">{orderName || "Novo Pedido"}</h1>
-                        <div className="flex gap-2">
-                            {!isOnline && <Badge variant="destructive" className="h-4 px-1 text-[10px]">Offline</Badge>}
-                            {isSyncing && <Badge variant="secondary" className="h-4 px-1 text-[10px] animate-pulse">Sincronizando...</Badge>}
-                            {isOnline && !isSyncing && pendingOpsRef.current.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">Pendentes: {pendingOpsRef.current.length}</Badge>}
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-lg font-bold leading-tight">{orderName || "Novo Pedido"}</h1>
+                            <div className="flex gap-2">
+                                {!isOnline && <Badge variant="destructive" className="h-4 px-1 text-[10px]">Offline</Badge>}
+                                {isSyncing && <Badge variant="secondary" className="h-4 px-1 text-[10px] animate-pulse">Sincronizando...</Badge>}
+                                {isOnline && !isSyncing && pendingOpsRef.current.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">Pendentes: {pendingOpsRef.current.length}</Badge>}
+                            </div>
                         </div>
                         <p className="text-xs text-muted-foreground flex items-center gap-2">
                             {loadingItems ? <Loader2 className="h-3 w-3 animate-spin" /> : `${orderItems.length} itens`}
