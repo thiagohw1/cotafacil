@@ -201,7 +201,7 @@ export default function Dashboard() {
         setLowParticipation(lowPart);
 
         // Top suppliers by response count with rate
-        const supplierStats = new Map<number, { responses: number; invites: number }>();
+        const supplierStats = new Map<string, { responses: number; invites: number }>();
         quoteSuppliers.forEach((qs) => {
           const current = supplierStats.get(qs.supplier_id) || { responses: 0, invites: 0 };
           current.invites++;
@@ -215,22 +215,29 @@ export default function Dashboard() {
           .eq("tenant_id", tenantId)
           .is("deleted_at", null);
 
-        // Calculate Savings and Winners Ranking
-        const supplierWins = new Map<number, { count: number; value: number }>();
 
-        // Fetch all items that have a winner
-        const { data: wonItems } = await supabase
-          .from("quote_items")
-          .select(`
-            id, 
-            winner_supplier_id, 
-            winner_response_id, 
-            quantity, 
-            product_id,
-            quote_id
-          `)
-          .in("quote_id", quotes.map(q => q.id)) // Use .in for array
-          .not("winner_supplier_id", "is", null);
+        // Calculate Savings and Winners Ranking
+        const supplierWins = new Map<string, { count: number; value: number }>();
+
+        // Only fetch won items if we have quotes
+        let wonItems: any[] = [];
+
+        if (quotes.length > 0) {
+          const { data } = await supabase
+            .from("quote_items")
+            .select(`
+              id, 
+              winner_supplier_id, 
+              winner_response_id, 
+              requested_qty, 
+              product_id,
+              quote_id
+            `)
+            .in("quote_id", quotes.map(q => q.id))
+            .not("winner_supplier_id", "is", null);
+
+          wonItems = data || [];
+        }
 
         if (wonItems && wonItems.length > 0) {
           // Get all responses for these items to calculate avg price
@@ -250,8 +257,9 @@ export default function Dashboard() {
                 const validPrices = responses.map(r => r.price).filter(p => p > 0);
                 if (validPrices.length > 1) {
                   const avgPrice = validPrices.reduce((a, b) => a + b, 0) / validPrices.length;
+                  // Use requested_qty
                   if (avgPrice > winnerRes.price) {
-                    totalSavings += (avgPrice - winnerRes.price) * (item.quantity || 1);
+                    totalSavings += (avgPrice - winnerRes.price) * (item.requested_qty || 1);
                   }
                 }
 
@@ -259,7 +267,7 @@ export default function Dashboard() {
                 if (item.winner_supplier_id) {
                   const current = supplierWins.get(item.winner_supplier_id) || { count: 0, value: 0 };
                   current.count++;
-                  current.value += winnerRes.price * (item.quantity || 1);
+                  current.value += winnerRes.price * (item.requested_qty || 1);
                   supplierWins.set(item.winner_supplier_id, current);
                 }
               }

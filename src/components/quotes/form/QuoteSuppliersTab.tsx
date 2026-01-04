@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Users, Plus, Copy, Check } from "lucide-react";
+import { Trash2, Users, Plus, Copy, Check, ExternalLink } from "lucide-react";
 import { QuoteSupplier, Supplier } from "@/types/quote";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -225,6 +225,17 @@ export function QuoteSuppliersTab({
                                                     ) : (
                                                         <Copy className="h-4 w-4" />
                                                     )}
+                                                </Button>
+                                            )}
+                                            {qs.public_token && quoteStatus !== 'draft' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => window.open(`/supplier/quote/${qs.public_token}`, '_blank')}
+                                                    title="Preencher Manualmente"
+                                                    className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                >
+                                                    <ExternalLink className="h-4 w-4" />
                                                 </Button>
                                             )}
                                             <Button

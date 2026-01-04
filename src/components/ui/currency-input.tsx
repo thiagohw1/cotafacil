@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from './input';
 
-interface CurrencyInputProps {
-    value: string;
+interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
+    value: string | number;
     onChange: (value: string) => void;
-    disabled?: boolean;
-    placeholder?: string;
-    className?: string;
+    // ... other props inherited
 }
 
-export function CurrencyInput({ value, onChange, disabled, placeholder = "0,00", className }: CurrencyInputProps) {
+export function CurrencyInput({ value, onChange, className, ...props }: CurrencyInputProps) {
     const [displayValue, setDisplayValue] = useState('');
 
     useEffect(() => {
@@ -55,9 +53,9 @@ export function CurrencyInput({ value, onChange, disabled, placeholder = "0,00",
                 inputMode="numeric"
                 value={displayValue}
                 onChange={handleChange}
-                disabled={disabled}
-                placeholder={placeholder}
+                placeholder={props.placeholder || "0,00"}
                 className={`pl-10 ${className}`}
+                {...props}
             />
         </div>
     );
